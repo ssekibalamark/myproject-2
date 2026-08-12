@@ -1,0 +1,148 @@
+﻿"""
+Definition of forms.
+"""
+
+from django import forms
+from django.contrib.auth.forms import AuthenticationForm
+from django.utils.translation import gettext_lazy as _
+
+from .models import AIDiagnosisSuggestion, AILabTestSuggestion, AIMedicationSuggestion
+
+
+class AutoBootstrapFormMixin:
+    """Apply Bootstrap classes and required-field markup automatically."""
+
+    base_input_class = "form-control"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            widget = field.widget
+
+            if isinstance(widget, (forms.CheckboxInput, forms.RadioSelect)):
+                css_class = "form-check-input"
+            else:
+                css_class = self.base_input_class
+
+            current = widget.attrs.get("class", "")
+            widget.attrs["class"] = f"{current} {css_class}".strip()
+
+            if field.required:
+                required_class = widget.attrs.get("class", "")
+                widget.attrs["class"] = f"{required_class} is-required".strip()
+                widget.attrs["required"] = "required"
+
+                if field.label and not field.label.endswith(" *"):
+                    field.label = f"{field.label} *"
+
+
+class BaseStyledModelForm(AutoBootstrapFormMixin, forms.ModelForm):
+    """Shared model form with Bootstrap styling and confidence validation."""
+
+    def clean_confidence_score(self):
+        """Validate confidence score range when the field is present."""
+        confidence = self.cleaned_data.get("confidence_score")
+        if confidence is None:
+            return confidence
+        if confidence < 0 or confidence > 1:
+            raise forms.ValidationError("Confidence score must be between 0 and 1.")
+        return confidence
+
+
+class BootstrapAuthenticationForm(AutoBootstrapFormMixin, AuthenticationForm):
+    """Authentication form that uses Bootstrap CSS."""
+
+    username = forms.CharField(
+        max_length=254,
+        widget=forms.TextInput(
+            {
+                "class": "form-control",
+                "placeholder": "User name",
+            }
+        ),
+    )
+    password = forms.CharField(
+        label=_("Password"),
+        widget=forms.PasswordInput(
+            {
+                "class": "form-control",
+                "placeholder": "Password",
+            }
+        ),
+    )
+
+
+class AIDiagnosisSuggestionForm(BaseStyledModelForm):
+    """Form used by clinicians to create AI diagnosis suggestions."""
+
+    class Meta:
+        model = AIDiagnosisSuggestion
+        fields = [
+            "diagnosis_name",
+            "icd10_code",
+            "differential_rank",
+            "confidence_score",
+            "rationale",
+            "source_model",
+        ]
+
+
+class AILabTestSuggestionForm(BaseStyledModelForm):
+    """Form used by clinicians to create AI lab test suggestions."""
+
+    class Meta:
+        model = AILabTestSuggestion
+        fields = [
+            "test_name",
+            "loinc_code",
+            "priority",
+            "clinical_question",
+            "confidence_score",
+            "rationale",
+            "source_model",
+        ]
+
+
+class AIMedicationSuggestionForm(BaseStyledModelForm):
+    """Form used by clinicians to create AI medication suggestions."""
+
+    class Meta:
+        model = AIMedicationSuggestion
+        fields = [
+            "medication_name",
+            "dose",
+            "route",
+            "frequency",
+            "duration",
+            "safety_notes",
+            "confidence_score",
+            "rationale",
+            "source_model",
+        ]
+
+
+class AIReviewForm(AutoBootstrapFormMixin, forms.Form):
+    """Specialist review form for approving or rejecting AI suggestions."""
+
+    review_status = forms.ChoiceField(
+        choices=[
+            ("PENDING", "Pending"),
+            ("APPROVED", "Approved"),
+            ("REJECTED", "Rejected"),
+        ],
+    )
+    reviewer_remarks = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 4}),
+    )
+
+    def clean(self):
+        """Require specialist remarks when an AI recommendation is rejected."""
+        cleaned_data = super().clean()
+        review_status = cleaned_data.get("review_status")
+        reviewer_remarks = (cleaned_data.get("reviewer_remarks") or "").strip()
+
+        if review_status == "REJECTED" and not reviewer_remarks:
+            self.add_error("reviewer_remarks", "Remarks are required when rejecting a suggestion.")
+
+        return cleaned_data

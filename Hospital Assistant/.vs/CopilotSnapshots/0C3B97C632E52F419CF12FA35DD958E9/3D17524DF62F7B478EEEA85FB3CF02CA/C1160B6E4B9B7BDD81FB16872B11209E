@@ -1,0 +1,304 @@
+﻿"""Definition of views."""
+
+from datetime import datetime
+
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
+from django.http import HttpRequest
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+
+from .forms import (
+    AIDiagnosisSuggestionForm,
+    AILabTestSuggestionForm,
+    AIMedicationSuggestionForm,
+    AIReviewForm,
+    HospitalStaffUpdateForm,
+    ICTStaffRegistrationForm,
+)
+from .models import AIDiagnosisSuggestion, AILabTestSuggestion, AIMedicationSuggestion, Encounter, StaffProfile
+
+def home(request):
+    """Renders the home page."""
+    assert isinstance(request, HttpRequest)
+    return render(
+        request,
+        'app/index.html',
+        {
+            'title':'Home Page',
+            'year':datetime.now().year,
+        }
+    )
+
+def contact(request):
+    """Renders the contact page."""
+    assert isinstance(request, HttpRequest)
+    return render(
+        request,
+        'app/contact.html',
+        {
+            'title':'Contact',
+            'message':'Your contact page.',
+            'year':datetime.now().year,
+        }
+    )
+
+def about(request):
+    """Renders the about page."""
+    assert isinstance(request, HttpRequest)
+    return render(
+        request,
+        'app/about.html',
+        {
+            'title':'About',
+            'message':'Your application description page.',
+            'year':datetime.now().year,
+        }
+    )
+
+
+def _require_role(request, allowed_roles):
+    """Ensure user is a superuser or has one of the allowed staff roles."""
+    if request.user.is_superuser:
+        return None
+
+    staff_profile = getattr(request.user, "staff_profile", None)
+    if staff_profile is None or staff_profile.role not in allowed_roles:
+        raise PermissionDenied("You do not have permission to perform this action.")
+    return staff_profile
+
+
+@login_required
+def staff_profile_list(request):
+    """List staff profiles for ICT Admin management."""
+    _require_role(request, {"ICT_ADMIN"})
+    staff_profiles = StaffProfile.objects.select_related("user").all()
+    return render(
+        request,
+        "app/staff_profile_list.html",
+        {
+            "title": "Staff Management",
+            "year": datetime.now().year,
+            "staff_profiles": staff_profiles,
+        },
+    )
+
+
+@login_required
+def staff_register(request):
+    """Register a hospital staff profile (ICT Admin only)."""
+    _require_role(request, {"ICT_ADMIN"})
+
+    if request.method == "POST":
+        form = ICTStaffRegistrationForm(request.POST)
+        if form.is_valid():
+            staff_profile = form.save(commit=False)
+            staff_profile.registered_by = request.user
+            staff_profile.registered_at = timezone.now()
+            staff_profile.save()
+            messages.success(request, "Staff profile registered successfully.")
+            return redirect("staff_profile_list")
+    else:
+        form = ICTStaffRegistrationForm()
+
+    return render(
+        request,
+        "app/staff_profile_form.html",
+        {
+            "title": "Register Staff Profile",
+            "year": datetime.now().year,
+            "form": form,
+            "submit_label": "Register Staff",
+        },
+    )
+
+
+@login_required
+def staff_update(request, pk):
+    """Update any staff profile details (ICT Admin only)."""
+    _require_role(request, {"ICT_ADMIN"})
+    staff_profile = get_object_or_404(StaffProfile, pk=pk)
+
+    if request.method == "POST":
+        form = HospitalStaffUpdateForm(request.POST, instance=staff_profile)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Staff profile updated successfully.")
+            return redirect("staff_profile_list")
+    else:
+        form = HospitalStaffUpdateForm(instance=staff_profile)
+
+    return render(
+        request,
+        "app/staff_profile_form.html",
+        {
+            "title": "Update Staff Profile",
+            "year": datetime.now().year,
+            "form": form,
+            "submit_label": "Save Changes",
+        },
+    )
+
+
+@login_required
+def my_staff_profile_update(request):
+    """Allow authenticated hospital staff to update their own profile details."""
+    staff_profile = _require_role(
+        request,
+        {
+            "ICT_ADMIN",
+            "DOCTOR",
+            "SPECIALIST",
+            "NURSE",
+            "PHARMACIST",
+            "LAB_TECH",
+            "RADIOGRAPHER",
+            "RECEPTIONIST",
+        },
+    )
+
+    if request.method == "POST":
+        form = HospitalStaffUpdateForm(request.POST, instance=staff_profile)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Your profile has been updated.")
+            return redirect("my_staff_profile_update")
+    else:
+        form = HospitalStaffUpdateForm(instance=staff_profile)
+
+    return render(
+        request,
+        "app/staff_profile_form.html",
+        {
+            "title": "My Staff Profile",
+            "year": datetime.now().year,
+            "form": form,
+            "submit_label": "Update My Profile",
+        },
+    )
+
+
+@login_required
+def ai_encounter_list(request):
+    """List encounters available for AI suggestion workflow."""
+    _require_role(request, {"DOCTOR", "SPECIALIST", "ICT_ADMIN"})
+    encounters = Encounter.objects.select_related("patient").all()[:50]
+    return render(
+        request,
+        "app/ai_encounters.html",
+        {
+            "title": "AI Workflow",
+            "year": datetime.now().year,
+            "encounters": encounters,
+        },
+    )
+
+
+@login_required
+def ai_suggestions(request, encounter_id):
+    """Create AI diagnosis, lab, and medication suggestions for an encounter."""
+    _require_role(request, {"DOCTOR", "SPECIALIST", "ICT_ADMIN"})
+    encounter = get_object_or_404(Encounter, pk=encounter_id)
+
+    diagnosis_form = AIDiagnosisSuggestionForm(prefix="diag")
+    lab_form = AILabTestSuggestionForm(prefix="lab")
+    medication_form = AIMedicationSuggestionForm(prefix="med")
+
+    if request.method == "POST":
+        if "create_diagnosis" in request.POST:
+            diagnosis_form = AIDiagnosisSuggestionForm(request.POST, prefix="diag")
+            if diagnosis_form.is_valid():
+                suggestion = diagnosis_form.save(commit=False)
+                suggestion.encounter = encounter
+                suggestion.save()
+                messages.success(request, "Diagnosis suggestion created.")
+                return redirect("ai_suggestions", encounter_id=encounter.id)
+
+        if "create_lab" in request.POST:
+            lab_form = AILabTestSuggestionForm(request.POST, prefix="lab")
+            if lab_form.is_valid():
+                suggestion = lab_form.save(commit=False)
+                suggestion.encounter = encounter
+                suggestion.save()
+                messages.success(request, "Lab test suggestion created.")
+                return redirect("ai_suggestions", encounter_id=encounter.id)
+
+        if "create_medication" in request.POST:
+            medication_form = AIMedicationSuggestionForm(request.POST, prefix="med")
+            if medication_form.is_valid():
+                suggestion = medication_form.save(commit=False)
+                suggestion.encounter = encounter
+                suggestion.save()
+                messages.success(request, "Medication suggestion created.")
+                return redirect("ai_suggestions", encounter_id=encounter.id)
+
+    return render(
+        request,
+        "app/ai_suggestions.html",
+        {
+            "title": f"AI Suggestions - {encounter.patient.patient_number}",
+            "year": datetime.now().year,
+            "encounter": encounter,
+            "diagnosis_form": diagnosis_form,
+            "lab_form": lab_form,
+            "medication_form": medication_form,
+            "diagnosis_items": AIDiagnosisSuggestion.objects.filter(encounter=encounter),
+            "lab_items": AILabTestSuggestion.objects.filter(encounter=encounter),
+            "medication_items": AIMedicationSuggestion.objects.filter(encounter=encounter),
+        },
+    )
+
+
+@login_required
+def ai_review_suggestion(request, suggestion_type, pk):
+    """Specialist review endpoint for AI recommendation items."""
+    reviewer = _require_role(request, {"SPECIALIST", "ICT_ADMIN"})
+
+    model_map = {
+        "diagnosis": AIDiagnosisSuggestion,
+        "lab": AILabTestSuggestion,
+        "medication": AIMedicationSuggestion,
+    }
+    model_class = model_map.get(suggestion_type)
+    if model_class is None:
+        raise PermissionDenied("Unsupported suggestion type.")
+
+    suggestion = get_object_or_404(model_class, pk=pk)
+
+    if request.method == "POST":
+        form = AIReviewForm(request.POST)
+        if form.is_valid():
+            suggestion.review_status = form.cleaned_data["review_status"]
+            suggestion.reviewer_remarks = form.cleaned_data["reviewer_remarks"]
+
+            if suggestion.review_status == "PENDING":
+                suggestion.reviewed_by = None
+                suggestion.reviewed_at = None
+            else:
+                suggestion.reviewed_by = reviewer
+                suggestion.reviewed_at = timezone.now()
+
+            suggestion.full_clean()
+            suggestion.save()
+            messages.success(request, "AI suggestion review updated.")
+            return redirect("ai_suggestions", encounter_id=suggestion.encounter_id)
+    else:
+        form = AIReviewForm(
+            initial={
+                "review_status": suggestion.review_status,
+                "reviewer_remarks": suggestion.reviewer_remarks,
+            }
+        )
+
+    return render(
+        request,
+        "app/ai_review.html",
+        {
+            "title": "Review AI Suggestion",
+            "year": datetime.now().year,
+            "suggestion": suggestion,
+            "suggestion_type": suggestion_type,
+            "form": form,
+        },
+    )

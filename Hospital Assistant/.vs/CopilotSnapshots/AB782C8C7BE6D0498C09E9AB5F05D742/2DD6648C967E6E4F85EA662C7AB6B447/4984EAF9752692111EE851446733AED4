@@ -1,0 +1,259 @@
+﻿"""Application tests."""
+
+from datetime import date, timedelta
+
+from django.contrib.auth.models import User
+from django.test import TestCase
+from django.urls import reverse
+from django.utils import timezone
+
+from .models import Encounter, NextOfKin, Patient, Sex, StaffProfile, StaffRole
+
+
+class ViewTest(TestCase):
+    """Tests for basic public pages."""
+
+    def test_home(self):
+        """Tests the home page."""
+        response = self.client.get("/")
+        self.assertContains(response, "Home Page", 1, 200)
+
+    def test_contact(self):
+        """Tests the contact page."""
+        response = self.client.get("/contact/")
+        self.assertContains(response, "Contact", 3, 200)
+
+    def test_about(self):
+        """Tests the about page."""
+        response = self.client.get("/about/")
+        self.assertContains(response, "About", 3, 200)
+
+
+class NavigationVisibilityTests(TestCase):
+    """Tests role-based link visibility in layout navigation."""
+
+    def _create_staff_user(self, username, role):
+        user = User.objects.create_user(username=username, password="Password123!")
+        StaffProfile.objects.create(
+            user=user,
+            staff_id=f"SID-{username.upper()}",
+            role=role,
+            department="General",
+        )
+        return user
+
+    def _get_home_html(self):
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        return response.content.decode("utf-8")
+
+    def test_anonymous_user_does_not_see_role_based_links(self):
+        html = self._get_home_html()
+        self.assertNotIn('href="/staff/"', html)
+        self.assertNotIn('href="/staff/me/"', html)
+        self.assertNotIn('href="/patients/"', html)
+        self.assertNotIn('href="/encounters/"', html)
+        self.assertNotIn('href="/next-of-kin/"', html)
+        self.assertNotIn('href="/ai/"', html)
+
+    def test_ict_admin_sees_all_navigation_links(self):
+        user = self._create_staff_user("ictadmin", StaffRole.ICT_ADMIN)
+        self.client.force_login(user)
+
+        html = self._get_home_html()
+        self.assertIn('href="/staff/"', html)
+        self.assertIn('href="/staff/me/"', html)
+        self.assertIn('href="/patients/"', html)
+        self.assertIn('href="/encounters/"', html)
+        self.assertIn('href="/next-of-kin/"', html)
+        self.assertIn('href="/ai/"', html)
+
+    def test_receptionist_does_not_see_staff_or_ai_links(self):
+        user = self._create_staff_user("recep1", StaffRole.RECEPTIONIST)
+        self.client.force_login(user)
+
+        html = self._get_home_html()
+        self.assertNotIn('href="/staff/"', html)
+        self.assertIn('href="/staff/me/"', html)
+        self.assertIn('href="/patients/"', html)
+        self.assertIn('href="/encounters/"', html)
+        self.assertIn('href="/next-of-kin/"', html)
+        self.assertNotIn('href="/ai/"', html)
+
+    def test_superuser_sees_all_navigation_links(self):
+        user = User.objects.create_superuser(
+            username="root",
+            email="root@example.com",
+            password="Password123!",
+        )
+        self.client.force_login(user)
+
+        html = self._get_home_html()
+        self.assertIn('href="/staff/"', html)
+        self.assertIn('href="/patients/"', html)
+        self.assertIn('href="/encounters/"', html)
+        self.assertIn('href="/next-of-kin/"', html)
+        self.assertIn('href="/ai/"', html)
+
+
+class ClinicalWorkflowViewTests(TestCase):
+    """Tests patient, next-of-kin, and encounter create-update flows."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="nurse1", password="Password123!")
+        self.staff_profile = StaffProfile.objects.create(
+            user=self.user,
+            staff_id="SID-NURSE1",
+            role=StaffRole.NURSE,
+            department="Nursing",
+        )
+        self.client.force_login(self.user)
+
+    @staticmethod
+    def _patient_payload(**overrides):
+        payload = {
+            "patient_number": "P-1001",
+            "first_name": "John",
+            "middle_name": "A",
+            "last_name": "Doe",
+            "date_of_birth": "1990-01-15",
+            "sex": Sex.MALE,
+            "socioeconomic_status": "Middle",
+            "insurance_type": "Private",
+            "preferred_language": "English",
+            "religion": "None",
+            "living_situation": "With family",
+            "family_structure": "Nuclear",
+            "location": "City",
+            "occupation": "Teacher",
+            "phone_number": "08012345678",
+            "email": "john@example.com",
+            "address": "Main Street",
+        }
+        payload.update(overrides)
+        return payload
+
+    @staticmethod
+    def _next_of_kin_payload(**overrides):
+        payload = {
+            "slot": 1,
+            "full_name": "Jane Doe",
+            "relationship": "Spouse",
+            "phone_number": "08099998888",
+            "alternative_phone": "08011112222",
+            "address": "Kin Address",
+        }
+        payload.update(overrides)
+        return payload
+
+    def _create_patient_with_two_kins(self):
+        patient = Patient.objects.create(
+            patient_number="P-2001",
+            first_name="Alice",
+            middle_name="",
+            last_name="Stone",
+            date_of_birth=date(1992, 5, 5),
+            sex=Sex.FEMALE,
+            phone_number="08022223333",
+            email="alice@example.com",
+            address="Street 2",
+        )
+        NextOfKin.objects.create(
+            patient=patient,
+            slot=1,
+            full_name="Kin One",
+            relationship="Brother",
+            phone_number="08030000001",
+            alternative_phone="",
+            address="A",
+        )
+        NextOfKin.objects.create(
+            patient=patient,
+            slot=2,
+            full_name="Kin Two",
+            relationship="Sister",
+            phone_number="08030000002",
+            alternative_phone="",
+            address="B",
+        )
+        return patient
+
+    def test_patient_create_and_update_flow(self):
+        create_response = self.client.post(reverse("patient_create"), data=self._patient_payload())
+        self.assertEqual(create_response.status_code, 302)
+        self.assertEqual(create_response.url, reverse("patient_list"))
+
+        patient = Patient.objects.get(patient_number="P-1001")
+        update_response = self.client.post(
+            reverse("patient_update", args=[patient.id]),
+            data=self._patient_payload(first_name="Johnny"),
+        )
+        self.assertEqual(update_response.status_code, 302)
+        patient.refresh_from_db()
+        self.assertEqual(patient.first_name, "Johnny")
+
+    def test_next_of_kin_create_and_update_flow(self):
+        patient = Patient.objects.create(
+            patient_number="P-1002",
+            first_name="Mary",
+            middle_name="",
+            last_name="James",
+            date_of_birth=date(1988, 8, 8),
+            sex=Sex.FEMALE,
+        )
+
+        create_response = self.client.post(
+            reverse("next_of_kin_create", args=[patient.id]),
+            data=self._next_of_kin_payload(),
+        )
+        self.assertEqual(create_response.status_code, 302)
+        self.assertEqual(create_response.url, reverse("next_of_kin_list", args=[patient.id]))
+
+        kin = NextOfKin.objects.get(patient=patient, slot=1)
+        update_response = self.client.post(
+            reverse("next_of_kin_update", args=[kin.id]),
+            data=self._next_of_kin_payload(relationship="Mother"),
+        )
+        self.assertEqual(update_response.status_code, 302)
+        kin.refresh_from_db()
+        self.assertEqual(kin.relationship, "Mother")
+
+    def test_encounter_create_and_update_flow(self):
+        patient = self._create_patient_with_two_kins()
+        started_at = timezone.now().replace(second=0, microsecond=0)
+        ended_at = started_at + timedelta(hours=2)
+
+        create_payload = {
+            "patient": patient.id,
+            "encounter_type": Encounter.EncounterType.OUTPATIENT,
+            "status": Encounter.EncounterStatus.OPEN,
+            "attending_doctor": "",
+            "specialist_reviewer": "",
+            "chief_complaint": "Headache",
+            "symptoms": "Headache, dizziness",
+            "doctor_notes": "Initial notes",
+            "assessment": "Observation",
+            "plan": "Hydration",
+            "specialist_decision": Encounter.SpecialistDecision.PENDING,
+            "specialist_remarks": "",
+            "specialist_reviewed_at": "",
+            "started_at": started_at.strftime("%Y-%m-%dT%H:%M"),
+            "ended_at": ended_at.strftime("%Y-%m-%dT%H:%M"),
+        }
+
+        create_response = self.client.post(reverse("encounter_create"), data=create_payload)
+        self.assertEqual(create_response.status_code, 302)
+        self.assertEqual(create_response.url, reverse("encounter_list"))
+
+        encounter = Encounter.objects.get(patient=patient)
+        update_payload = create_payload.copy()
+        update_payload["status"] = Encounter.EncounterStatus.COMPLETED
+        update_payload["chief_complaint"] = "Severe headache"
+        update_response = self.client.post(
+            reverse("encounter_update", args=[encounter.id]),
+            data=update_payload,
+        )
+        self.assertEqual(update_response.status_code, 302)
+        encounter.refresh_from_db()
+        self.assertEqual(encounter.status, Encounter.EncounterStatus.COMPLETED)
+        self.assertEqual(encounter.chief_complaint, "Severe headache")

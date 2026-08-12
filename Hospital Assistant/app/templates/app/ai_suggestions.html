@@ -1,0 +1,89 @@
+{% extends "app/layout.html" %}
+
+{% block content %}
+<h2>AI Suggestions</h2>
+<p><strong>Encounter:</strong> {{ encounter.encounter_number }} | <strong>Patient:</strong> {{ encounter.patient }}</p>
+
+<div class="row">
+    <div class="col-md-4">
+        <h3>Create Diagnosis Suggestion</h3>
+        <form method="post">
+            {% csrf_token %}
+            {{ diagnosis_form.as_p }}
+            <button class="btn btn-success" type="submit" name="create_diagnosis">Save Diagnosis</button>
+        </form>
+    </div>
+    <div class="col-md-4">
+        <h3>Create Lab Suggestion</h3>
+        <form method="post">
+            {% csrf_token %}
+            {{ lab_form.as_p }}
+            <button class="btn btn-success" type="submit" name="create_lab">Save Lab</button>
+        </form>
+    </div>
+    <div class="col-md-4">
+        <h3>Create Medication Suggestion</h3>
+        <form method="post">
+            {% csrf_token %}
+            {{ medication_form.as_p }}
+            <button class="btn btn-success" type="submit" name="create_medication">Save Medication</button>
+        </form>
+    </div>
+</div>
+
+<hr />
+
+<h3>Diagnosis Suggestions</h3>
+<table class="table table-bordered table-condensed">
+    <thead><tr><th>Name</th><th>Rank</th><th>Confidence</th><th>Status</th><th>Action</th></tr></thead>
+    <tbody>
+    {% for item in diagnosis_items %}
+        <tr>
+            <td>{{ item.diagnosis_name }}</td>
+            <td>{{ item.differential_rank }}</td>
+            <td>{{ item.confidence_score }}</td>
+            <td>{{ item.get_review_status_display }}</td>
+            <td><a href="{% url 'ai_review_suggestion' 'diagnosis' item.id %}">Review</a></td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="5">No diagnosis suggestions yet.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<h3>Lab Test Suggestions</h3>
+<table class="table table-bordered table-condensed">
+    <thead><tr><th>Test</th><th>Priority</th><th>Confidence</th><th>Status</th><th>Action</th></tr></thead>
+    <tbody>
+    {% for item in lab_items %}
+        <tr>
+            <td>{{ item.test_name }}</td>
+            <td>{{ item.get_priority_display }}</td>
+            <td>{{ item.confidence_score }}</td>
+            <td>{{ item.get_review_status_display }}</td>
+            <td><a href="{% url 'ai_review_suggestion' 'lab' item.id %}">Review</a></td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="5">No lab suggestions yet.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<h3>Medication Suggestions</h3>
+<table class="table table-bordered table-condensed">
+    <thead><tr><th>Medication</th><th>Dose</th><th>Confidence</th><th>Status</th><th>Action</th></tr></thead>
+    <tbody>
+    {% for item in medication_items %}
+        <tr>
+            <td>{{ item.medication_name }}</td>
+            <td>{{ item.dose }}</td>
+            <td>{{ item.confidence_score }}</td>
+            <td>{{ item.get_review_status_display }}</td>
+            <td><a href="{% url 'ai_review_suggestion' 'medication' item.id %}">Review</a></td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="5">No medication suggestions yet.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends "app/layout.html" %}
+
+{% block content %}
+<h2>Nurse Dashboard</h2>
+<p>Welcome, {{ user.get_full_name }}!</p>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="panel panel-default">
+            <div class="panel-heading">Patients</div>
+            <div class="panel-body">
+                <a href="{% url 'nurse_patient_list' %}" class="btn btn-primary btn-block">View All Patients</a>
+                <a href="{% url 'nurse_patient_create' %}" class="btn btn-success btn-block">Register New Patient</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="panel panel-default">
+            <div class="panel-heading">Quick Actions</div>
+            <div class="panel-body">
+                <!-- You can add a search or recent patients list -->
+                <p>Select a patient to record vitals:</p>
+                <ul class="list-group">
+                    {% for patient in patients|slice:":5" %}
+                    <li class="list-group-item">
+                        {{ patient.first_name }} {{ patient.last_name }}
+                        <a href="{% url 'nurse_vital_signs_create' patient.id %}" class="badge">Add Vitals</a>
+                        <a href="{% url 'nurse_patient_detail' patient.id %}" class="badge">View</a>
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item">No patients registered yet.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

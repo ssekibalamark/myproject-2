@@ -1,0 +1,61 @@
+﻿"""
+Definition of forms.
+"""
+
+from django import forms
+from django.contrib.auth.forms import AuthenticationForm
+from django.utils.translation import gettext_lazy as _
+
+from .models import AIDiagnosisSuggestion, AILabTestSuggestion, AIMedicationSuggestion
+
+class BootstrapAuthenticationForm(AuthenticationForm):
+    """Authentication form which uses boostrap CSS."""
+    username = forms.CharField(max_length=254,
+                               widget=forms.TextInput({
+                                   'class': 'form-control',
+                                   'placeholder': 'User name'}))
+    password = forms.CharField(label=_("Password"),
+                               widget=forms.PasswordInput({
+                                   'class': 'form-control',
+                                   'placeholder':'Password'}))
+
+
+class AIDiagnosisSuggestionForm(forms.ModelForm):
+    """Form used by clinicians to create AI diagnosis suggestions."""
+
+    class Meta:
+        model = AIDiagnosisSuggestion
+        fields = ["diagnosis_name", "icd10_code", "differential_rank", "confidence_score", "rationale", "source_model"]
+
+
+class AILabTestSuggestionForm(forms.ModelForm):
+    """Form used by clinicians to create AI lab test suggestions."""
+
+    class Meta:
+        model = AILabTestSuggestion
+        fields = ["test_name", "loinc_code", "priority", "clinical_question", "confidence_score", "rationale", "source_model"]
+
+
+class AIMedicationSuggestionForm(forms.ModelForm):
+    """Form used by clinicians to create AI medication suggestions."""
+
+    class Meta:
+        model = AIMedicationSuggestion
+        fields = ["medication_name", "dose", "route", "frequency", "duration", "safety_notes", "confidence_score", "rationale", "source_model"]
+
+
+class AIReviewForm(forms.Form):
+    """Specialist review form for approving or rejecting AI suggestions."""
+
+    review_status = forms.ChoiceField(
+        choices=[
+            ("PENDING", "Pending"),
+            ("APPROVED", "Approved"),
+            ("REJECTED", "Rejected"),
+        ],
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
+    reviewer_remarks = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 4}),
+    )

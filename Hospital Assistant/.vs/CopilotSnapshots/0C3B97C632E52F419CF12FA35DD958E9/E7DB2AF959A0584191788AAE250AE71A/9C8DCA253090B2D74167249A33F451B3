@@ -1,0 +1,90 @@
+﻿from django.contrib import admin
+from django.utils import timezone
+
+from .models import Encounter, NextOfKin, Patient, StaffProfile
+
+
+class NextOfKinInline(admin.TabularInline):
+    model = NextOfKin
+    extra = 2
+    min_num = 2
+    max_num = 2
+
+
+@admin.register(StaffProfile)
+class StaffProfileAdmin(admin.ModelAdmin):
+    list_display = ("staff_id", "user", "role", "department", "is_active", "registered_by", "registered_at")
+    list_filter = ("role", "department", "is_active")
+    search_fields = ("staff_id", "user__username", "user__first_name", "user__last_name", "department")
+    autocomplete_fields = ("user", "registered_by")
+
+    @staticmethod
+    def _is_ict_admin(user):
+        if not user.is_authenticated:
+            return False
+        if user.is_superuser:
+            return True
+        return hasattr(user, "staff_profile") and user.staff_profile.role == "ICT_ADMIN"
+
+    def has_add_permission(self, request):
+        return self._is_ict_admin(request.user)
+
+    def has_change_permission(self, request, obj=None):
+        return self._is_ict_admin(request.user)
+
+    def has_delete_permission(self, request, obj=None):
+        return self._is_ict_admin(request.user)
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        if self._is_ict_admin(request.user):
+            return queryset
+        return queryset.none()
+
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.registered_by = request.user
+            obj.registered_at = timezone.now()
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(Patient)
+class PatientAdmin(admin.ModelAdmin):
+    list_display = ("patient_number", "first_name", "last_name", "date_of_birth", "sex", "insurance_type")
+    list_filter = ("sex", "insurance_type", "preferred_language")
+    search_fields = ("patient_number", "first_name", "middle_name", "last_name", "phone_number")
+    inlines = [NextOfKinInline]
+
+
+@admin.register(NextOfKin)
+class NextOfKinAdmin(admin.ModelAdmin):
+    list_display = ("patient", "slot", "full_name", "relationship", "phone_number")
+    list_filter = ("slot", "relationship")
+    search_fields = ("patient__patient_number", "full_name", "relationship", "phone_number")
+    autocomplete_fields = ("patient",)
+
+
+@admin.register(Encounter)
+class EncounterAdmin(admin.ModelAdmin):
+    list_display = (
+        "encounter_number",
+        "patient",
+        "encounter_type",
+        "status",
+        "attending_doctor",
+        "specialist_reviewer",
+        "started_at",
+        "ended_at",
+        "specialist_decision",
+    )
+    list_filter = ("encounter_type", "status", "specialist_decision", "started_at")
+    search_fields = (
+        "encounter_number",
+        "patient__patient_number",
+        "patient__first_name",
+        "patient__last_name",
+        "chief_complaint",
+        "symptoms",
+    )
+    autocomplete_fields = ("patient", "attending_doctor", "specialist_reviewer")
+    readonly_fields = ("encounter_number", "created_at", "updated_at")

@@ -1,0 +1,77 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - Hospital Assistant</title>
+    {% load static %}
+    <link rel="stylesheet" type="text/css" href="{% static 'app/content/bootstrap.min.css' %}" />
+    <link rel="stylesheet" type="text/css" href="{% static 'app/content/site.css' %}" />
+    <script src="{% static 'app/scripts/modernizr-2.6.2.js' %}"></script>
+</head>
+
+<body>
+    {% block navbar %}
+    <div class="navbar navbar-inverse navbar-fixed-top">
+        <div class="container">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a href="/" class="navbar-brand">Hospital Assistant</a>
+            </div>
+            <div class="navbar-collapse collapse">
+                <ul class="nav navbar-nav">
+                    <li><a href="{% url 'home' %}">Home</a></li>
+                    <li><a href="{% url 'about' %}">About</a></li>
+                    <li><a href="{% url 'contact' %}">Contact</a></li>
+                    {% if user.is_authenticated %}
+                        {% with role=user.staff_profile.role %}
+                            {% if user.is_superuser or role == "ICT_ADMIN" %}
+                                <li><a href="{% url 'staff_profile_list' %}">Staff</a></li>
+                            {% endif %}
+
+                            {% if role %}
+                                <li><a href="{% url 'my_staff_profile_update' %}">My Profile</a></li>
+                            {% endif %}
+
+                            {% if user.is_superuser or role == "ICT_ADMIN" or role == "DOCTOR" or role == "SPECIALIST" or role == "NURSE" or role == "PHARMACIST" or role == "LAB_TECH" or role == "RADIOGRAPHER" or role == "RECEPTIONIST" %}
+                                <li><a href="{% url 'patient_list' %}">Patients</a></li>
+                                <li><a href="{% url 'encounter_list' %}">Encounters</a></li>
+                                <li><a href="{% url 'next_of_kin_patient_list' %}">Next of Kin</a></li>
+                            {% endif %}
+
+                            {% if user.is_superuser or role == "ICT_ADMIN" or role == "DOCTOR" or role == "SPECIALIST" %}
+                                <li><a href="{% url 'ai_encounter_list' %}">AI Workflow</a></li>
+                            {% endif %}
+                        {% endwith %}
+                    {% endif %}
+                </ul>
+                {% include 'app/loginpartial.html' %}
+            </div>
+        </div>
+    </div>
+    {% endblock %}
+
+    <div class="container body-content">
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags|default:'info' }}" role="alert">{{ message }}</div>
+    {% endfor %}
+{% endif %}
+{% block content %}{% endblock %}
+        <hr/>
+        <footer>
+            <p>&copy; {{ year }} - Hospital Assistant</p>
+        </footer>
+    </div>
+
+    <script src="{% static 'app/scripts/jquery-1.10.2.js' %}"></script>
+    <script src="{% static 'app/scripts/bootstrap.js' %}"></script>
+    <script src="{% static 'app/scripts/respond.js' %}"></script>
+{% block scripts %}{% endblock %}
+
+</body>
+</html>

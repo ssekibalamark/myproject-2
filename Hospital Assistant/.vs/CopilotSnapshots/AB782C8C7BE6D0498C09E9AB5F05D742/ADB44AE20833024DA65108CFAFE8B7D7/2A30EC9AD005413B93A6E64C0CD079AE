@@ -1,0 +1,384 @@
+﻿"""Data models for hospital staff, patients, and encounters."""
+
+import uuid
+
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+from django.db import models
+
+
+class TimeStampedModel(models.Model):
+    """Abstract base model that adds created/updated timestamps."""
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        abstract = True
+
+
+class StaffRole(models.TextChoices):
+    """Supported hospital staff role values."""
+
+    ICT_ADMIN = "ICT_ADMIN", "ICT Admin"
+    DOCTOR = "DOCTOR", "Doctor"
+    SPECIALIST = "SPECIALIST", "Specialist"
+    NURSE = "NURSE", "Nurse"
+    PHARMACIST = "PHARMACIST", "Pharmacist"
+    LAB_TECH = "LAB_TECH", "Lab Technician"
+    RADIOGRAPHER = "RADIOGRAPHER", "Radiographer"
+    RECEPTIONIST = "RECEPTIONIST", "Receptionist"
+
+
+class Sex(models.TextChoices):
+    """Patient sex options used during registration."""
+
+    MALE = "M", "Male"
+    FEMALE = "F", "Female"
+    
+
+
+class StaffProfile(TimeStampedModel):
+    """Profile and work metadata for a medical or administrative staff user."""
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="staff_profile")
+    staff_id = models.CharField(max_length=30, unique=True)
+    role = models.CharField(max_length=20, choices=StaffRole.choices)
+    department = models.CharField(max_length=120)
+    phone_number = models.CharField(max_length=20, blank=True)
+    license_number = models.CharField(max_length=60, blank=True)
+    is_active = models.BooleanField(default=True)
+    registered_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="registered_medical_staff",
+        help_text="ICT user who registered this medical staff.",
+    )
+    registered_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["staff_id"]
+
+    def __str__(self):
+        """Readable admin/list display name for staff objects."""
+        return f"{self.staff_id} - {self.user.get_full_name() or self.user.username}"
+
+    def clean(self):
+        """Ensure staff users can authenticate with their registration number.
+
+        Enforces that the associated Django User has a usable password so the
+        staff member can login using their registration number (staff_id) and
+        password. The staff user's username is synchronized to staff_id on save
+        so the default Django authentication (username/password) works with the
+        registration number.
+        """
+        # Ensure a user is linked
+        if not self.user_id:
+            raise ValidationError("StaffProfile must be linked to a Django User.")
+
+        # Require a usable password so the staff can login with registration number
+        if not self.user.has_usable_password():
+            raise ValidationError({
+                "user": (
+                    "Associated user must have a usable password so staff can login "
+                    "using the registration number and password."
+                )
+            })
+
+    def save(self, *args, **kwargs):
+        """Keep the related User.username synchronized to staff_id and validate
+        the profile before saving.
+        """
+        # If the linked User exists but username differs, update it so staff can
+        # authenticate using their registration number as the username.
+        if self.user_id and self.user.username != self.staff_id:
+            self.user.username = self.staff_id
+            # Save the user first to ensure username uniqueness constraints are
+            # enforced at the DB level before saving the profile.
+            self.user.save()
+
+        # Run model validation to ensure password usability and other invariants
+        self.full_clean()
+
+        return super().save(*args, **kwargs)
+
+
+class Patient(TimeStampedModel):
+    """Patient demographic, social determinant, and contact information."""
+
+    patient_number = models.CharField(max_length=30, unique=True)
+    first_name = models.CharField(max_length=80)
+    middle_name = models.CharField(max_length=80, blank=True)
+    last_name = models.CharField(max_length=80)
+    date_of_birth = models.DateField()
+    sex = models.CharField(max_length=1, choices=Sex.choices)
+
+    socioeconomic_status = models.CharField(max_length=120, blank=True)
+    insurance_type = models.CharField(max_length=120, blank=True)
+    preferred_language = models.CharField(max_length=80, blank=True)
+    religion = models.CharField(max_length=80, blank=True)
+
+    living_situation = models.CharField(max_length=200, blank=True)
+    family_structure = models.CharField(max_length=200, blank=True)
+    location = models.CharField(max_length=200, blank=True)
+    occupation = models.CharField(max_length=120, blank=True)
+
+    phone_number = models.CharField(max_length=20, blank=True)
+    email = models.EmailField(blank=True)
+    address = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["patient_number"]
+
+    def validate_next_of_kin_count(self, allow_empty=True):
+        """Validate that the patient has exactly two next-of-kin records.
+
+        When ``allow_empty`` is True, zero records are allowed during early
+        registration before contacts are added.
+        """
+        if not self.pk:
+            return
+
+        kin_count = self.next_of_kins.count()
+        if allow_empty and kin_count == 0:
+            return
+
+        if kin_count != 2:
+            raise ValidationError(
+                "Each patient profile must have exactly 2 next-of-kin records."
+            )
+
+    def clean(self):
+        """Keep patient-level next-of-kin validation in model logic."""
+        self.validate_next_of_kin_count(allow_empty=True)
+
+    def __str__(self):
+        """Readable admin/list display name for patient objects."""
+        return f"{self.patient_number} - {self.first_name} {self.last_name}"
+
+
+class NextOfKin(TimeStampedModel):
+    """Emergency contact details for a patient (two slots per patient)."""
+
+    class KinSlot(models.IntegerChoices):
+        """Fixed next-of-kin slot positions required by the system."""
+
+        FIRST = 1, "Next of kin 1"
+        SECOND = 2, "Next of kin 2"
+
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name="next_of_kins")
+    slot = models.PositiveSmallIntegerField(choices=KinSlot.choices)
+    full_name = models.CharField(max_length=160)
+    relationship = models.CharField(max_length=80)
+    phone_number = models.CharField(max_length=20)
+    alternative_phone = models.CharField(max_length=20, blank=True)
+    address = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["patient", "slot"]
+        constraints = [
+            models.UniqueConstraint(fields=["patient", "slot"], name="unique_patient_kin_slot")
+        ]
+
+    def clean(self):
+        """Ensure a patient cannot have more than two next-of-kin records."""
+        if not self.patient_id:
+            return
+
+        existing = NextOfKin.objects.filter(patient_id=self.patient_id)
+        if self.pk:
+            existing = existing.exclude(pk=self.pk)
+
+        if existing.count() >= 2:
+            raise ValidationError(
+                "A patient cannot have more than 2 next-of-kin records."
+            )
+
+    def save(self, *args, **kwargs):
+        """Run model validation before saving next-of-kin records."""
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        """Readable admin/list display name for next-of-kin objects."""
+        return f"{self.patient.patient_number} - {self.full_name}"
+
+
+class Encounter(TimeStampedModel):
+    """A patient care interaction including notes and specialist review outcome."""
+
+    class EncounterType(models.TextChoices):
+        """Clinical encounter categories."""
+
+        OUTPATIENT = "OUTPATIENT", "Outpatient"
+        INPATIENT = "INPATIENT", "Inpatient"
+        EMERGENCY = "EMERGENCY", "Emergency"
+        FOLLOW_UP = "FOLLOW_UP", "Follow-up"
+
+    class EncounterStatus(models.TextChoices):
+        """Workflow status of an encounter."""
+
+        OPEN = "OPEN", "Open"
+        UNDER_REVIEW = "UNDER_REVIEW", "Under review"
+        COMPLETED = "COMPLETED", "Completed"
+        CANCELLED = "CANCELLED", "Cancelled"
+
+    class SpecialistDecision(models.TextChoices):
+        """Specialist review decision for AI/clinical recommendations."""
+
+        PENDING = "PENDING", "Pending"
+        AGREED = "AGREED", "Agreed"
+        UPDATED = "UPDATED", "Updated with remarks"
+        REJECTED = "REJECTED", "Rejected"
+
+    encounter_number = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name="encounters")
+    encounter_type = models.CharField(max_length=20, choices=EncounterType.choices)
+    status = models.CharField(max_length=20, choices=EncounterStatus.choices, default=EncounterStatus.OPEN)
+
+    attending_doctor = models.ForeignKey(
+        StaffProfile,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="attending_encounters",
+    )
+    specialist_reviewer = models.ForeignKey(
+        StaffProfile,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="specialist_reviews",
+    )
+
+    chief_complaint = models.TextField(blank=True)
+    symptoms = models.TextField(blank=True)
+    doctor_notes = models.TextField(blank=True)
+    assessment = models.TextField(blank=True)
+    plan = models.TextField(blank=True)
+
+    specialist_decision = models.CharField(
+        max_length=20,
+        choices=SpecialistDecision.choices,
+        default=SpecialistDecision.PENDING,
+    )
+    specialist_remarks = models.TextField(blank=True)
+    specialist_reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    started_at = models.DateTimeField()
+    ended_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-started_at"]
+
+    def clean(self):
+        """Validate temporal consistency for encounter start/end timestamps."""
+        if self.ended_at and self.ended_at < self.started_at:
+            raise ValidationError({"ended_at": "Encounter end time cannot be earlier than start time."})
+
+        if self.patient_id:
+            self.patient.validate_next_of_kin_count(allow_empty=False)
+
+    def __str__(self):
+        """Readable admin/list display name for encounter objects."""
+        return f"{self.encounter_number} - {self.patient.patient_number}"
+
+
+class AIReviewStatus(models.TextChoices):
+    """Workflow state for clinician review of AI recommendations."""
+
+    PENDING = "PENDING", "Pending"
+    APPROVED = "APPROVED", "Approved"
+    REJECTED = "REJECTED", "Rejected"
+
+
+class AIRecommendationBase(TimeStampedModel):
+    """Shared fields for AI-generated clinical recommendations."""
+
+    encounter = models.ForeignKey(
+        Encounter,
+        on_delete=models.CASCADE,
+        related_name="%(class)s_items",
+    )
+    confidence_score = models.DecimalField(max_digits=4, decimal_places=3, null=True, blank=True)
+    rationale = models.TextField(blank=True)
+    source_model = models.CharField(max_length=120, blank=True)
+
+    review_status = models.CharField(
+        max_length=20,
+        choices=AIReviewStatus.choices,
+        default=AIReviewStatus.PENDING,
+    )
+    reviewed_by = models.ForeignKey(
+        StaffProfile,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="%(class)s_reviewed_items",
+    )
+    reviewer_remarks = models.TextField(blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        abstract = True
+        ordering = ["-created_at"]
+
+    def clean(self):
+        """Validate confidence range and reviewer metadata consistency."""
+        if self.confidence_score is not None and not (0 <= self.confidence_score <= 1):
+            raise ValidationError({"confidence_score": "Confidence score must be between 0 and 1."})
+
+        if self.review_status != AIReviewStatus.PENDING and not self.reviewed_by_id:
+            raise ValidationError({"reviewed_by": "Reviewed-by is required when status is approved/rejected."})
+
+
+class AIDiagnosisSuggestion(AIRecommendationBase):
+    """AI diagnosis suggestions generated from encounter data."""
+
+    diagnosis_name = models.CharField(max_length=200)
+    icd10_code = models.CharField(max_length=20, blank=True)
+    differential_rank = models.PositiveSmallIntegerField(default=1)
+
+    class Meta(AIRecommendationBase.Meta):
+        ordering = ["encounter", "differential_rank", "-created_at"]
+
+    def __str__(self):
+        """Readable admin/list display value for diagnosis suggestion."""
+        return f"{self.encounter.encounter_number} - {self.diagnosis_name}"
+
+
+class AILabTestSuggestion(AIRecommendationBase):
+    """AI-recommended laboratory tests for an encounter."""
+
+    class Priority(models.TextChoices):
+        """Urgency level for suggested test requests."""
+
+        ROUTINE = "ROUTINE", "Routine"
+        URGENT = "URGENT", "Urgent"
+        STAT = "STAT", "Stat"
+
+    test_name = models.CharField(max_length=200)
+    loinc_code = models.CharField(max_length=30, blank=True)
+    priority = models.CharField(max_length=10, choices=Priority.choices, default=Priority.ROUTINE)
+    clinical_question = models.TextField(blank=True)
+
+    def __str__(self):
+        """Readable admin/list display value for lab suggestion."""
+        return f"{self.encounter.encounter_number} - {self.test_name}"
+
+
+class AIMedicationSuggestion(AIRecommendationBase):
+    """AI medication recommendations for clinician review."""
+
+    medication_name = models.CharField(max_length=200)
+    dose = models.CharField(max_length=80, blank=True)
+    route = models.CharField(max_length=60, blank=True)
+    frequency = models.CharField(max_length=80, blank=True)
+    duration = models.CharField(max_length=80, blank=True)
+    safety_notes = models.TextField(blank=True)
+
+    def __str__(self):
+        """Readable admin/list display value for medication suggestion."""
+        return f"{self.encounter.encounter_number} - {self.medication_name}"

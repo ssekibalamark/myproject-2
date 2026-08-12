@@ -1,0 +1,92 @@
+﻿"""Application tests."""
+
+from django.contrib.auth.models import User
+from django.test import TestCase
+
+from .models import StaffProfile, StaffRole
+
+
+class ViewTest(TestCase):
+    """Tests for basic public pages."""
+
+    def test_home(self):
+        """Tests the home page."""
+        response = self.client.get("/")
+        self.assertContains(response, "Home Page", 1, 200)
+
+    def test_contact(self):
+        """Tests the contact page."""
+        response = self.client.get("/contact/")
+        self.assertContains(response, "Contact", 3, 200)
+
+    def test_about(self):
+        """Tests the about page."""
+        response = self.client.get("/about/")
+        self.assertContains(response, "About", 3, 200)
+
+
+class NavigationVisibilityTests(TestCase):
+    """Tests role-based link visibility in layout navigation."""
+
+    def _create_staff_user(self, username, role):
+        user = User.objects.create_user(username=username, password="Password123!")
+        StaffProfile.objects.create(
+            user=user,
+            staff_id=f"SID-{username.upper()}",
+            role=role,
+            department="General",
+        )
+        return user
+
+    def _get_home_html(self):
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        return response.content.decode("utf-8")
+
+    def test_anonymous_user_does_not_see_role_based_links(self):
+        html = self._get_home_html()
+        self.assertNotIn('href="/staff/"', html)
+        self.assertNotIn('href="/staff/me/"', html)
+        self.assertNotIn('href="/patients/"', html)
+        self.assertNotIn('href="/encounters/"', html)
+        self.assertNotIn('href="/next-of-kin/"', html)
+        self.assertNotIn('href="/ai/"', html)
+
+    def test_ict_admin_sees_all_navigation_links(self):
+        user = self._create_staff_user("ictadmin", StaffRole.ICT_ADMIN)
+        self.client.force_login(user)
+
+        html = self._get_home_html()
+        self.assertIn('href="/staff/"', html)
+        self.assertIn('href="/staff/me/"', html)
+        self.assertIn('href="/patients/"', html)
+        self.assertIn('href="/encounters/"', html)
+        self.assertIn('href="/next-of-kin/"', html)
+        self.assertIn('href="/ai/"', html)
+
+    def test_receptionist_does_not_see_staff_or_ai_links(self):
+        user = self._create_staff_user("recep1", StaffRole.RECEPTIONIST)
+        self.client.force_login(user)
+
+        html = self._get_home_html()
+        self.assertNotIn('href="/staff/"', html)
+        self.assertIn('href="/staff/me/"', html)
+        self.assertIn('href="/patients/"', html)
+        self.assertIn('href="/encounters/"', html)
+        self.assertIn('href="/next-of-kin/"', html)
+        self.assertNotIn('href="/ai/"', html)
+
+    def test_superuser_sees_all_navigation_links(self):
+        user = User.objects.create_superuser(
+            username="root",
+            email="root@example.com",
+            password="Password123!",
+        )
+        self.client.force_login(user)
+
+        html = self._get_home_html()
+        self.assertIn('href="/staff/"', html)
+        self.assertIn('href="/patients/"', html)
+        self.assertIn('href="/encounters/"', html)
+        self.assertIn('href="/next-of-kin/"', html)
+        self.assertIn('href="/ai/"', html)

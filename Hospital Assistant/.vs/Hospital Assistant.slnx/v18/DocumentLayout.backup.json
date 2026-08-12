@@ -1,0 +1,71 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "D:\\myproject 2\\Hospital Assistant\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{B4500021-A593-40BA-8465-E3231E31ACDF}|Hospital Assistant.pyproj|D:\\myproject 2\\Hospital Assistant\\Hospital_Assistant\\urls.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{B4500021-A593-40BA-8465-E3231E31ACDF}|Hospital Assistant.pyproj|solutionrelative:Hospital_Assistant\\urls.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B4500021-A593-40BA-8465-E3231E31ACDF}|Hospital Assistant.pyproj|D:\\myproject 2\\Hospital Assistant\\app\\views.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{B4500021-A593-40BA-8465-E3231E31ACDF}|Hospital Assistant.pyproj|solutionrelative:app\\views.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B4500021-A593-40BA-8465-E3231E31ACDF}|Hospital Assistant.pyproj|D:\\myproject 2\\Hospital Assistant\\app\\templates\\app\\layout.html||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{B4500021-A593-40BA-8465-E3231E31ACDF}|Hospital Assistant.pyproj|solutionrelative:app\\templates\\app\\layout.html||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "urls.py",
+              "DocumentMoniker": "D:\\myproject 2\\Hospital Assistant\\Hospital_Assistant\\urls.py",
+              "RelativeDocumentMoniker": "Hospital_Assistant\\urls.py",
+              "ToolTip": "D:\\myproject 2\\Hospital Assistant\\Hospital_Assistant\\urls.py",
+              "RelativeToolTip": "Hospital_Assistant\\urls.py",
+              "ViewState": "AgIAAAYAAAAAAAAAAAAAABQAAABRAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2026-08-11T12:03:13.399Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "views.py",
+              "DocumentMoniker": "D:\\myproject 2\\Hospital Assistant\\app\\views.py",
+              "RelativeDocumentMoniker": "app\\views.py",
+              "ToolTip": "D:\\myproject 2\\Hospital Assistant\\app\\views.py",
+              "RelativeToolTip": "app\\views.py",
+              "ViewState": "AgIAAKECAAAAAAAAAAAAAKoCAAAEAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2026-08-11T11:54:09.932Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "layout.html",
+              "DocumentMoniker": "D:\\myproject 2\\Hospital Assistant\\app\\templates\\app\\layout.html",
+              "RelativeDocumentMoniker": "app\\templates\\app\\layout.html",
+              "ToolTip": "D:\\myproject 2\\Hospital Assistant\\app\\templates\\app\\layout.html",
+              "RelativeToolTip": "app\\templates\\app\\layout.html",
+              "ViewState": "AgIAACEAAAAAAAAAAAAAACwAAABQAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001512|",
+              "WhenOpened": "2026-08-11T11:46:25.787Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

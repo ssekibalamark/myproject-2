@@ -1,0 +1,49 @@
+{% extends "app/layout.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="jumbotron">
+    <div class="row">
+        <div class="col-md-5 text-center">
+            <img src="{% static 'images/doctor&robot.jpg' %}"
+                 alt="Illustration of a robot and a doctor caring for a patient together"
+                 style="width:100%; max-width:360px; height:auto;" />
+        </div>
+        <div class="col-md-7">
+            <h1>Hospital Assistant</h1>
+            <p class="lead">
+                A clinical support system where AI and healthcare professionals work side by side.
+                Hospital Assistant helps doctors and specialists diagnose faster, suggest lab tests
+                and medications, and manage patient records &mdash; with every AI recommendation
+                reviewed and approved by a qualified specialist before it reaches the patient.
+            </p>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <h2>AI-Assisted Diagnosis</h2>
+        <p>
+            Symptoms, lab results, and doctor's notes are analyzed to suggest possible diagnoses,
+            required lab tests, and medications &mdash; always reviewed by a specialist first.
+        </p>
+    </div>
+    <div class="col-md-4">
+        <h2>Patient-Centered Records</h2>
+        <p>
+            Complete patient profiles including next of kin, encounters, and care history, kept
+            securely in the hospital database.
+        </p>
+    </div>
+    <div class="col-md-4">
+        <h2>Role-Based Access</h2>
+        <p>
+            Staff registration is managed by the ICT department, with each medical role
+            granted access only to the tools relevant to their work.
+        </p>
+    </div>
+</div>
+
+{% endblock %}

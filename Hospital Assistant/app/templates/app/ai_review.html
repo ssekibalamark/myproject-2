@@ -1,0 +1,15 @@
+{% extends "app/layout.html" %}
+
+{% block content %}
+<h2>Review AI Suggestion</h2>
+<p><strong>Type:</strong> {{ suggestion_type|title }}</p>
+<p><strong>Encounter:</strong> {{ suggestion.encounter.encounter_number }}</p>
+<p><strong>Current Status:</strong> {{ suggestion.get_review_status_display }}</p>
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button class="btn btn-primary" type="submit">Submit Review</button>
+    <a class="btn btn-default" href="{% url 'ai_suggestions' suggestion.encounter.id %}">Back</a>
+</form>
+{% endblock %}

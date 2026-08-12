@@ -1,0 +1,84 @@
+{% extends "app/layout.html" %}
+{% load static %} <!-- optional but good -->
+{% block content %}
+<h2>{{ title }}</h2>
+
+<form method="post" class="form-horizontal" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <!-- Patient Fields -->
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <h4><span class="glyphicon glyphicon-user"></span> Patient Demographics</h4>
+            <p class="text-muted" style="margin-top: 5px;">
+                <span class="glyphicon glyphicon-info-sign"></span>
+                You must provide either a <strong>Passport Number</strong> or a <strong>National ID</strong>.
+            </p>
+        </div>
+        <div class="panel-body">
+            {% for field in form %}
+            <div class="form-group">
+
+
+                <label class="control-label col-md-3" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                <div class="col-md-9">
+                    {{ field }}
+                    {% if field.help_text %}
+                    <p class="help-block">{{ field.help_text }}</p>
+                    {% endif %}
+                    {% for error in field.errors %}
+                    <div class="text-danger">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Next of Kin Formset -->
+    <hr>
+    <h4>Next of Kin (Two contacts required)</h4>
+    {{ nok_formset.management_form }}
+    {% if nok_formset.non_form_errors %}
+    <div class="alert alert-danger">{{ nok_formset.non_form_errors }}</div>
+    {% endif %}
+
+    {% for nok_form in nok_formset %}
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <h5>Next of Kin {{ forloop.counter }}</h5>
+        </div>
+        <div class="panel-body">
+            {% for field in nok_form %}
+            {% if field.is_hidden %}
+            {{ field }}
+            {% else %}
+            <div class="form-group">
+                <label class="control-label col-md-3" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                <div class="col-md-9">
+                    {{ field }}
+                    {% if field.help_text %}
+                    <p class="help-block">{{ field.help_text }}</p>
+                    {% endif %}
+                    {% for error in field.errors %}
+                    <div class="text-danger">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+
+    <div class="form-group">
+        <div class="col-md-offset-3 col-md-9">
+            <button type="submit" class="btn btn-primary btn-lg">{{ submit_label }}</button>
+            <a class="btn btn-default" href="{% url 'patient_list' %}">Back</a>
+        </div>
+    </div>
+</form>
+{% endblock %}

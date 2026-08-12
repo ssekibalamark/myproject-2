@@ -1,0 +1,37 @@
+﻿"""
+Definition of urls for Hospital_Assistant.
+"""
+
+from datetime import datetime
+from django.urls import path
+from django.contrib import admin
+from django.contrib.auth.views import LoginView, LogoutView
+from app import forms, views
+
+
+urlpatterns = [
+    path('', views.home, name='home'),
+    path('contact/', views.contact, name='contact'),
+    path('about/', views.about, name='about'),
+    path('staff/', views.staff_profile_list, name='staff_profile_list'),
+    path('staff/register/', views.staff_register, name='staff_register'),
+    path('staff/<int:pk>/edit/', views.staff_update, name='staff_update'),
+    path('staff/me/', views.my_staff_profile_update, name='my_staff_profile_update'),
+    path('ai/', views.ai_encounter_list, name='ai_encounter_list'),
+    path('ai/encounter/<int:encounter_id>/', views.ai_suggestions, name='ai_suggestions'),
+    path('ai/review/<str:suggestion_type>/<int:pk>/', views.ai_review_suggestion, name='ai_review_suggestion'),
+    path('login/',
+         LoginView.as_view
+         (
+             template_name='app/login.html',
+             authentication_form=forms.BootstrapAuthenticationForm,
+             extra_context=
+             {
+                 'title': 'Log in',
+                 'year' : datetime.now().year,
+             }
+         ),
+         name='login'),
+    path('logout/', LogoutView.as_view(next_page='/'), name='logout'),
+    path('admin/', admin.site.urls),
+]

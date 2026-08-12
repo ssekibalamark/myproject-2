@@ -1,0 +1,6 @@
+﻿# Copilot Instructions
+
+## Project Guidelines
+- User prefers we clean forms.py first and then add classes incrementally one by one.
+- for all files to be created and exiting we are to write code line by line not just copy and paste the entire code.
+- and all code should be written in a way that is easy to read and understand, with clear comments explaining the purpose of each section.
