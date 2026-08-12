@@ -1,0 +1,116 @@
+{% extends "app/layout.html" %}
+
+{% block content %}
+<h2>{{ title }}</h2>
+<p>Welcome, {{ user.get_full_name }}! <span class="label label-primary">{{ user.staff_profile.get_role_display }}</span></p>
+
+<div class="row">
+    <!-- Left Column: Pending Imaging Orders -->
+    <div class="col-md-7">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <strong>Pending Imaging Orders</strong>
+                <span class="badge pull-right">{{ pending_orders|length }}</span>
+            </div>
+            <div class="panel-body">
+                {% if pending_orders %}
+                <table class="table table-condensed table-striped">
+                    <thead>
+                        <tr>
+                            <th>Patient</th>
+                            <th>Study</th>
+                            <th>Modality</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                            <th>Ordered By</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in pending_orders %}
+                        <tr>
+                            <td>{{ order.patient.patient_number }}<br><small>{{ order.patient.first_name }} {{ order.patient.last_name }}</small></td>
+                            <td>{{ order.test_name }}</td>
+                            <td><span class="label label-default">{{ order.get_test_category_display }}</span></td>
+                            <td>
+                                {% if order.priority == "STAT" %}
+                                <span class="label label-danger">STAT</span>
+                                {% elif order.priority == "URGENT" %}
+                                <span class="label label-warning">Urgent</span>
+                                {% else %}
+                                <span class="label label-default">Routine</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ order.get_status_display }}</td>
+                            <td><small>{{ order.ordered_by.user.get_full_name|default:"—" }}</small></td>
+                            <td>
+                                {% if order.radiography_study %}
+                                <a href="{% url 'radiography_study_edit' order.id %}" class="btn btn-info btn-xs">Edit Study</a>
+                                {% else %}
+                                <a href="{% url 'radiography_study_create' order.id %}" class="btn btn-success btn-xs">Begin Study</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted">No pending imaging orders.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: My Studies & Modalities -->
+    <div class="col-md-5">
+        <!-- My Studies -->
+        <div class="panel panel-info">
+            <div class="panel-heading"><strong>My Studies</strong></div>
+            <div class="panel-body">
+                {% if my_studies %}
+                <table class="table table-condensed">
+                    <thead>
+                        <tr><th>Patient</th><th>Study</th><th>Body Part</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for study in my_studies %}
+                        <tr>
+                            <td><small>{{ study.lab_test_order.patient.patient_number }}</small></td>
+                            <td><small>{{ study.lab_test_order.test_name }}</small></td>
+                            <td><small>{{ study.body_part|default:"—" }}</small></td>
+                            <td>
+                                {% if study.status == "COMPLETED" %}
+                                <span class="label label-success">Completed</span>
+                                {% elif study.status == "IN_PROGRESS" %}
+                                <span class="label label-warning">In Progress</span>
+                                {% else %}
+                                <span class="label label-default">Pending</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted">No studies performed yet.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Imaging Modalities Reference -->
+        <div class="panel panel-default">
+            <div class="panel-heading"><strong>Imaging Modalities</strong></div>
+            <div class="panel-body" style="font-size: 0.85em;">
+                <ul class="list-unstyled">
+                    <li><strong>X-ray:</strong> Quick bone, chest, and injury imaging</li>
+                    <li><strong>CT:</strong> Detailed cross-sectional organ scans</li>
+                    <li><strong>MRI:</strong> High-resolution soft tissue imaging</li>
+                    <li><strong>Ultrasound:</strong> Real-time sound-wave imaging (pregnancy, organs, vessels)</li>
+                    <li><strong>Fluoroscopy:</strong> Continuous X-ray for procedures (e.g., barium studies)</li>
+                    <li><strong>Interventional:</strong> Imaging guidance during minimally invasive procedures</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

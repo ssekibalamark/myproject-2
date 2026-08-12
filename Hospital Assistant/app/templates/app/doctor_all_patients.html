@@ -1,0 +1,70 @@
+{% extends "app/layout.html" %}
+
+{% block content %}
+<h2>{{ title }}</h2>
+<p class="text-muted">Full patient register — {{ total_count }} total, {{ waiting_count }} currently waiting.</p>
+
+<!-- Search -->
+<form method="get" class="form-inline" style="margin-bottom: 15px;">
+    <div class="form-group">
+        <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search by number, name, or phone">
+    </div>
+    <button type="submit" class="btn btn-primary">Search</button>
+    {% if query %}
+    <a href="{% url 'doctor_all_patients' %}" class="btn btn-default">Clear</a>
+    {% endif %}
+</form>
+
+{% if patients %}
+<table class="table table-striped table-bordered">
+    <thead>
+        <tr>
+            <th>Patient Number</th>
+            <th>Name</th>
+            <th>Date of Birth</th>
+            <th>Sex</th>
+            <th>Phone</th>
+            <th>Queue Status</th>
+            <th>Test Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in patients %}
+        <tr>
+            <td>{{ row.patient.patient_number }}</td>
+            <td>{{ row.patient.first_name }} {{ row.patient.last_name }}</td>
+            <td>{{ row.patient.date_of_birth }}</td>
+            <td>{{ row.patient.get_sex_display }}</td>
+            <td>{{ row.patient.phone_number|default:"—" }}</td>
+            <td>
+                {% if row.is_waiting %}
+                <span class="label label-primary">Waiting</span>
+                {% else %}
+                <span class="label label-default">Not Waiting</span>
+                {% endif %}
+            </td>
+            <td>
+                {% with ts=row.test_status %}
+                {% if ts.state == "awaiting" %}
+                <span class="label label-warning">Awaiting Tests ({{ ts.pending }})</span>
+                {% elif ts.state == "ready" %}
+                <span class="label label-success">Tests Ready ({{ ts.completed }})</span>
+                {% else %}
+                <span class="label label-default">No Tests</span>
+                {% endif %}
+                {% endwith %}
+            </td>
+            <td>
+                <a href="{% url 'doctor_patient_detail' row.patient.id %}" class="btn btn-primary btn-sm" target="_blank" rel="noopener">View Profile</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="alert alert-info">No patients found{% if query %} matching "{{ query }}"{% endif %}.</div>
+{% endif %}
+
+<a href="{% url 'doctor_dashboard' %}" class="btn btn-default">Back to Dashboard</a>
+{% endblock %}

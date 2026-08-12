@@ -1,0 +1,128 @@
+{% extends "app/layout.html" %}
+
+{% block content %}
+<h2>{{ title }}</h2>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Order Info -->
+        <div class="well well-sm">
+            <strong>Patient:</strong> {{ order.patient.patient_number }} — {{ order.patient.first_name }} {{ order.patient.last_name }}
+            &nbsp;|&nbsp;
+            <strong>Study:</strong> {{ order.test_name }}
+            &nbsp;|&nbsp;
+            <strong>Modality:</strong> {{ order.get_test_category_display }}
+            &nbsp;|&nbsp;
+            <strong>Priority:</strong> {{ order.get_priority_display }}
+            {% if order.clinical_notes %}
+            <br><strong>Clinical Notes:</strong> {{ order.clinical_notes }}
+            {% endif %}
+        </div>
+
+        <form method="post" enctype="multipart/form-data" class="form-horizontal">
+            {% csrf_token %}
+
+            <!-- Status -->
+            <div class="form-group">
+                <label class="col-md-3 control-label">{{ form.status.label }}</label>
+                <div class="col-md-4">{{ form.status }}</div>
+            </div>
+
+            <hr>
+            <h4>Imaging Details</h4>
+
+            <div class="form-group">
+                <label class="col-md-3 control-label">{{ form.body_part.label }}</label>
+                <div class="col-md-9">{{ form.body_part }}</div>
+            </div>
+            <div class="form-group">
+                <label class="col-md-3 control-label">{{ form.technique.label }}</label>
+                <div class="col-md-9">{{ form.technique }}</div>
+            </div>
+            <div class="form-group">
+                <label class="col-md-3 control-label">{{ form.contrast_used.label }}</label>
+                <div class="col-md-9">{{ form.contrast_used }}</div>
+            </div>
+
+            <hr>
+            <h4>Image Upload</h4>
+
+            <div class="form-group">
+                <label class="col-md-3 control-label">{{ form.image_file.label }}</label>
+                <div class="col-md-9">{{ form.image_file }}</div>
+            </div>
+            <div class="form-group">
+                <label class="col-md-3 control-label">{{ form.additional_image_1.label }}</label>
+                <div class="col-md-9">{{ form.additional_image_1 }}</div>
+            </div>
+            <div class="form-group">
+                <label class="col-md-3 control-label">{{ form.additional_image_2.label }}</label>
+                <div class="col-md-9">{{ form.additional_image_2 }}</div>
+            </div>
+
+            <hr>
+            <h4>Findings & Impression</h4>
+
+            <div class="form-group">
+                <label class="col-md-3 control-label">{{ form.findings.label }}</label>
+                <div class="col-md-9">{{ form.findings }}</div>
+                <div class="col-md-offset-3 col-md-9"><small class="text-muted">Detailed description of imaging findings.</small></div>
+            </div>
+            <div class="form-group">
+                <label class="col-md-3 control-label">{{ form.impression.label }}</label>
+                <div class="col-md-9">{{ form.impression }}</div>
+                <div class="col-md-offset-3 col-md-9"><small class="text-muted">Summary impression / most likely diagnosis.</small></div>
+            </div>
+            <div class="form-group">
+                <label class="col-md-3 control-label">{{ form.conclusion.label }}</label>
+                <div class="col-md-9">{{ form.conclusion }}</div>
+            </div>
+
+            <hr>
+            <h4>Report</h4>
+
+            <div class="form-group">
+                <label class="col-md-3 control-label">{{ form.report_file.label }}</label>
+                <div class="col-md-9">{{ form.report_file }}</div>
+                <div class="col-md-offset-3 col-md-9"><small class="text-muted">Attach a formal radiology report if available.</small></div>
+            </div>
+
+            <div class="form-group">
+                <div class="col-md-offset-3 col-md-9">
+                    <button type="submit" class="btn btn-primary">{{ submit_label }}</button>
+                    <a href="{% url 'radiography_dashboard' %}" class="btn btn-default">Cancel</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Sidebar: Existing Images -->
+    {% if study and study.image_file %}
+    <div class="col-md-4">
+        <div class="panel panel-default">
+            <div class="panel-heading"><strong>Uploaded Images</strong></div>
+            <div class="panel-body">
+                {% if study.image_file %}
+                <div class="thumbnail">
+                    <img src="{{ study.image_file.url }}" alt="Primary image" class="img-responsive" style="max-height: 200px;">
+                    <div class="caption"><small>Primary Image</small></div>
+                </div>
+                {% endif %}
+                {% if study.additional_image_1 %}
+                <div class="thumbnail">
+                    <img src="{{ study.additional_image_1.url }}" alt="Additional 1" class="img-responsive" style="max-height: 200px;">
+                    <div class="caption"><small>Additional Image 1</small></div>
+                </div>
+                {% endif %}
+                {% if study.additional_image_2 %}
+                <div class="thumbnail">
+                    <img src="{{ study.additional_image_2.url }}" alt="Additional 2" class="img-responsive" style="max-height: 200px;">
+                    <div class="caption"><small>Additional Image 2</small></div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

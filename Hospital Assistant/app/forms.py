@@ -14,13 +14,17 @@ from .models import (
     AILabTestSuggestion,
     AIMedicationSuggestion,
     Encounter,
+    LabTestCategory,
+    LabTestOrder,
+    LabTestResult,
     NextOfKin,
+    PathologistFinding,
     Patient,
     PrescribedMedication,
+    RadiographyStudy,
     StaffRole,
     StaffProfile,
     VitalSigns,
-    
 )
 from django.forms import inlineformset_factory
 
@@ -146,6 +150,7 @@ class ICTStaffRegistrationForm(BaseStyledModelForm):
             StaffRole.DOCTOR,
             StaffRole.SPECIALIST,
             StaffRole.PHARMACIST,
+            StaffRole.PATHOLOGIST,
             StaffRole.LAB_TECH,
             StaffRole.RADIOGRAPHER,
         }
@@ -200,6 +205,7 @@ class HospitalStaffUpdateForm(BaseStyledModelForm):
             StaffRole.DOCTOR,
             StaffRole.SPECIALIST,
             StaffRole.PHARMACIST,
+            StaffRole.PATHOLOGIST,
             StaffRole.LAB_TECH,
             StaffRole.RADIOGRAPHER,
         }
@@ -614,19 +620,189 @@ class VitalSignsForm(BaseStyledModelForm):
         ]
 
 class PrescribedMedicationForm(BaseStyledModelForm):
-    """Form for recording prescribed medications during an encounter."""
+    """Form for doctors to write a full prescription for a patient."""
+
     class Meta:
         model = PrescribedMedication
         fields = [
             'medication_name',
             'dose',
-            
+            'route',
             'frequency',
+            'duration',
+            'prescription_type',
             'start_date',
             'end_date',
+            'special_instructions',
             'notes',
         ]
-        widgets ={
+        widgets = {
             'start_date': forms.DateInput(attrs={"type": "date"}),
             'end_date': forms.DateInput(attrs={"type": "date"}),
+            'special_instructions': forms.Textarea(attrs={"rows": 3}),
+            'notes': forms.Textarea(attrs={"rows": 2}),
+        }
+
+
+# ---------------------------------------------------------------------------
+# Lab / Pathology / Radiography Platform Forms
+# ---------------------------------------------------------------------------
+
+class LabTestOrderForm(BaseStyledModelForm):
+    """Form for doctors to order lab, pathology, or radiography tests."""
+
+    class Meta:
+        model = LabTestOrder
+        fields = [
+            "encounter",
+            "patient",
+            "test_name",
+            "test_category",
+            "priority",
+            "clinical_notes",
+        ]
+        widgets = {
+            "clinical_notes": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        # Pop optional patient context used to narrow encounter choices.
+        patient = kwargs.pop("patient", None)
+        super().__init__(*args, **kwargs)
+
+        if patient is not None:
+            # Only allow encounters belonging to the selected patient.
+            self.fields["encounter"].queryset = Encounter.objects.filter(
+                patient=patient
+            ).order_by("-started_at")
+            # Lock the patient field to the selected patient.
+            self.fields["patient"].queryset = Patient.objects.filter(pk=patient.pk)
+            self.fields["patient"].initial = patient.pk
+
+        # Group test categories by platform for better UX
+        self.fields["test_category"].widget.attrs["class"] += " test-category-select"
+
+
+class DoctorEncounterForm(BaseStyledModelForm):
+    """Compact encounter form used inside the doctor's patient profile.
+
+    The patient is excluded here and set in the view, since the encounter is
+    always created for the patient whose profile is being viewed.
+    """
+
+    class Meta:
+        model = Encounter
+        fields = [
+            "encounter_type",
+            "status",
+            "attending_doctor",
+            "chief_complaint",
+            "symptoms",
+            "doctor_notes",
+            "started_at",
+            "ended_at",
+        ]
+        widgets = {
+            "chief_complaint": forms.Textarea(attrs={"rows": 2}),
+            "symptoms": forms.Textarea(attrs={"rows": 2}),
+            "doctor_notes": forms.Textarea(attrs={"rows": 3}),
+            "started_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+            "ended_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+        }
+
+
+# ---------------------------------------------------------------------------
+# 1. PATHOLOGIST FORMS
+# ---------------------------------------------------------------------------
+
+class PathologistFindingForm(BaseStyledModelForm):
+    """Form for pathologists to enter findings and write reports."""
+
+    class Meta:
+        model = PathologistFinding
+        fields = [
+            "status",
+            "specimen_type",
+            "specimen_received_at",
+            "specimen_quality",
+            "gross_description",
+            "microscopic_findings",
+            "diagnosis",
+            "tumor_grade",
+            "margins_status",
+            "lymph_node_status",
+            "ihc_results",
+            "molecular_findings",
+            "flow_cytometry_results",
+            "cause_of_death",
+            "organ_damage_summary",
+            "conclusion",
+            "recommendations",
+            "report_file",
+        ]
+        widgets = {
+            "specimen_received_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+            "gross_description": forms.Textarea(attrs={"rows": 3}),
+            "microscopic_findings": forms.Textarea(attrs={"rows": 5}),
+            "diagnosis": forms.Textarea(attrs={"rows": 4}),
+            "ihc_results": forms.Textarea(attrs={"rows": 3}),
+            "molecular_findings": forms.Textarea(attrs={"rows": 3}),
+            "flow_cytometry_results": forms.Textarea(attrs={"rows": 2}),
+            "organ_damage_summary": forms.Textarea(attrs={"rows": 3}),
+            "conclusion": forms.Textarea(attrs={"rows": 4}),
+            "recommendations": forms.Textarea(attrs={"rows": 3}),
+        }
+
+
+# ---------------------------------------------------------------------------
+# 2. LAB TECHNICIAN FORMS
+# ---------------------------------------------------------------------------
+
+class LabTestResultForm(BaseStyledModelForm):
+    """Form for lab technicians to enter test results and findings."""
+
+    class Meta:
+        model = LabTestResult
+        fields = [
+            "status",
+            "result_value",
+            "reference_range",
+            "is_abnormal",
+            "units",
+            "methodology",
+            "instrument_used",
+            "technician_notes",
+            "result_file",
+        ]
+        widgets = {
+            "technician_notes": forms.Textarea(attrs={"rows": 3}),
+        }
+
+
+# ---------------------------------------------------------------------------
+# 3. RADIOGRAPHY FORMS
+# ---------------------------------------------------------------------------
+
+class RadiographyStudyForm(BaseStyledModelForm):
+    """Form for radiographers to upload images and write imaging reports."""
+
+    class Meta:
+        model = RadiographyStudy
+        fields = [
+            "status",
+            "body_part",
+            "technique",
+            "contrast_used",
+            "image_file",
+            "additional_image_1",
+            "additional_image_2",
+            "findings",
+            "impression",
+            "conclusion",
+            "report_file",
+        ]
+        widgets = {
+            "findings": forms.Textarea(attrs={"rows": 4}),
+            "impression": forms.Textarea(attrs={"rows": 3}),
+            "conclusion": forms.Textarea(attrs={"rows": 3}),
         }

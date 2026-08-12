@@ -6,8 +6,12 @@ from .models import (
     AILabTestSuggestion,
     AIMedicationSuggestion,
     Encounter,
+    LabTestOrder,
+    LabTestResult,
     NextOfKin,
+    PathologistFinding,
     Patient,
+    RadiographyStudy,
     StaffProfile,
 )
 
@@ -189,3 +193,43 @@ class AIMedicationSuggestionAdmin(admin.ModelAdmin):
     list_filter = ("review_status", "created_at")
     search_fields = ("encounter__encounter_number", "medication_name")
     autocomplete_fields = ("encounter", "reviewed_by")
+
+
+# ---------------------------------------------------------------------------
+# Lab / Pathology / Radiography Admin Registrations
+# ---------------------------------------------------------------------------
+
+@admin.register(LabTestOrder)
+class LabTestOrderAdmin(admin.ModelAdmin):
+    """Admin configuration for lab/pathology/radiography test orders."""
+    list_display = ("test_name", "patient", "test_category", "priority", "status", "ordered_by", "ordered_at")
+    list_filter = ("test_category", "priority", "status", "ordered_at")
+    search_fields = ("test_name", "patient__patient_number", "patient__first_name", "patient__last_name")
+    autocomplete_fields = ("patient", "encounter", "ordered_by")
+
+
+@admin.register(PathologistFinding)
+class PathologistFindingAdmin(admin.ModelAdmin):
+    """Admin configuration for pathologist findings and reports."""
+    list_display = ("lab_test_order", "pathologist", "status", "specimen_type", "created_at")
+    list_filter = ("status", "created_at")
+    search_fields = ("lab_test_order__test_name", "lab_test_order__patient__patient_number", "diagnosis")
+    autocomplete_fields = ("lab_test_order", "pathologist", "reviewed_by")
+
+
+@admin.register(LabTestResult)
+class LabTestResultAdmin(admin.ModelAdmin):
+    """Admin configuration for lab technician test results."""
+    list_display = ("lab_test_order", "lab_technician", "status", "result_value", "is_abnormal", "created_at")
+    list_filter = ("status", "is_abnormal", "created_at")
+    search_fields = ("lab_test_order__test_name", "lab_test_order__patient__patient_number", "result_value")
+    autocomplete_fields = ("lab_test_order", "lab_technician", "verified_by")
+
+
+@admin.register(RadiographyStudy)
+class RadiographyStudyAdmin(admin.ModelAdmin):
+    """Admin configuration for radiography imaging studies."""
+    list_display = ("lab_test_order", "radiographer", "status", "body_part", "created_at")
+    list_filter = ("status", "created_at")
+    search_fields = ("lab_test_order__test_name", "lab_test_order__patient__patient_number", "body_part", "findings")
+    autocomplete_fields = ("lab_test_order", "radiographer", "reviewed_by")

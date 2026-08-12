@@ -124,6 +124,10 @@ STATICFILES_STORAGE = os.getenv(
     "whitenoise.storage.CompressedManifestStaticFilesStorage",
 )
 
+# Media files (user uploads: lab reports, radiography images, etc.)
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+
 
 # Security defaults (override per environment where needed)
 SECURE_SSL_REDIRECT = _env_bool("DJANGO_SECURE_SSL_REDIRECT", False)

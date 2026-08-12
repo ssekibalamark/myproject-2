@@ -1,0 +1,131 @@
+{% extends "app/layout.html" %}
+
+{% block content %}
+<h2>{{ title }}</h2>
+<p>Welcome, Dr. {{ user.get_full_name }}! <span class="label label-primary">{{ user.staff_profile.get_role_display }}</span></p>
+
+<div class="row">
+    <!-- Left Column: Pending Orders -->
+    <div class="col-md-7">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <strong>Pending Pathology Orders</strong>
+                <span class="badge pull-right">{{ pending_orders|length }}</span>
+            </div>
+            <div class="panel-body">
+                {% if pending_orders %}
+                <table class="table table-condensed table-striped">
+                    <thead>
+                        <tr>
+                            <th>Patient</th>
+                            <th>Test</th>
+                            <th>Category</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                            <th>Ordered By</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in pending_orders %}
+                        <tr>
+                            <td>{{ order.patient.patient_number }}<br><small>{{ order.patient.first_name }} {{ order.patient.last_name }}</small></td>
+                            <td>{{ order.test_name }}</td>
+                            <td><small>{{ order.get_test_category_display }}</small></td>
+                            <td>
+                                {% if order.priority == "STAT" %}
+                                <span class="label label-danger">STAT</span>
+                                {% elif order.priority == "URGENT" %}
+                                <span class="label label-warning">Urgent</span>
+                                {% else %}
+                                <span class="label label-default">Routine</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ order.get_status_display }}</td>
+                            <td><small>{{ order.ordered_by.user.get_full_name|default:"—" }}</small></td>
+                            <td>
+                                {% if order.pathologist_finding %}
+                                <a href="{% url 'pathologist_report_edit' order.id %}" class="btn btn-info btn-xs">Edit Report</a>
+                                {% else %}
+                                <a href="{% url 'pathologist_report_create' order.id %}" class="btn btn-success btn-xs">Write Report</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted">No pending pathology orders.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: My Reports & Verifications -->
+    <div class="col-md-5">
+        <!-- My Reports -->
+        <div class="panel panel-info">
+            <div class="panel-heading"><strong>My Reports</strong></div>
+            <div class="panel-body">
+                {% if my_reports %}
+                <table class="table table-condensed">
+                    <thead>
+                        <tr><th>Patient</th><th>Diagnosis</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for report in my_reports %}
+                        <tr>
+                            <td><small>{{ report.lab_test_order.patient.patient_number }}</small></td>
+                            <td><small>{{ report.diagnosis|truncatechars:40 }}</small></td>
+                            <td>
+                                {% if report.status == "FINAL" %}
+                                <span class="label label-success">Final</span>
+                                {% elif report.status == "DRAFT" %}
+                                <span class="label label-warning">Draft</span>
+                                {% else %}
+                                <span class="label label-info">{{ report.get_status_display }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted">No reports written yet.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Pending Lab Tech Verifications -->
+        <div class="panel panel-warning">
+            <div class="panel-heading">
+                <strong>Lab Results Awaiting Verification</strong>
+                <span class="badge pull-right">{{ pending_verifications|length }}</span>
+            </div>
+            <div class="panel-body">
+                {% if pending_verifications %}
+                <table class="table table-condensed">
+                    <thead>
+                        <tr><th>Patient</th><th>Test</th><th>Lab Tech</th><th>Action</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for result in pending_verifications %}
+                        <tr>
+                            <td><small>{{ result.lab_test_order.patient.patient_number }}</small></td>
+                            <td><small>{{ result.lab_test_order.test_name }}</small></td>
+                            <td><small>{{ result.lab_technician.user.get_full_name|default:"—" }}</small></td>
+                            <td>
+                                <a href="{% url 'pathologist_verify_lab_result' result.id %}" class="btn btn-primary btn-xs">Review</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted">No results awaiting verification.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

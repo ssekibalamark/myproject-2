@@ -1,0 +1,60 @@
+{% extends "app/layout.html" %}
+
+{% block content %}
+<h2>{{ title }}</h2>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Encounter Info -->
+        <div class="well well-sm">
+            <strong>Patient:</strong> {{ encounter.patient.patient_number }} — {{ encounter.patient.first_name }} {{ encounter.patient.last_name }}
+            &nbsp;|&nbsp;
+            <strong>Encounter:</strong> {{ encounter.get_encounter_type_display }}
+            &nbsp;|&nbsp;
+            <strong>Chief Complaint:</strong> {{ encounter.chief_complaint|truncatechars:60 }}
+        </div>
+
+        <form method="post" class="form-horizontal">
+            {% csrf_token %}
+            {{ form.encounter.as_hidden }}
+            {{ form.patient.as_hidden }}
+
+            <div class="form-group">
+                <label class="col-md-3 control-label">{{ form.test_name.label }}</label>
+                <div class="col-md-9">{{ form.test_name }}</div>
+                <div class="col-md-offset-3 col-md-9"><small class="text-muted">Describe the test (e.g., "CBC with Differential", "Chest X-ray PA", "Liver Biopsy").</small></div>
+            </div>
+
+            <div class="form-group">
+                <label class="col-md-3 control-label">{{ form.test_category.label }}</label>
+                <div class="col-md-9">{{ form.test_category }}</div>
+                <div class="col-md-offset-3 col-md-9">
+                    <small class="text-muted">
+                        <strong>Pathologist:</strong> Histopathology, Cytopathology, Hematopathology, Autopsy, Molecular, IHC, Transfusion Oversight<br>
+                        <strong>Lab Tech:</strong> Hematology, Clinical Chemistry, Microbiology, Immunology, Urinalysis, Histology Prep, Transfusion<br>
+                        <strong>Radiography:</strong> X-ray, CT, MRI, Ultrasound, Fluoroscopy, Interventional
+                    </small>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="col-md-3 control-label">{{ form.priority.label }}</label>
+                <div class="col-md-4">{{ form.priority }}</div>
+            </div>
+
+            <div class="form-group">
+                <label class="col-md-3 control-label">{{ form.clinical_notes.label }}</label>
+                <div class="col-md-9">{{ form.clinical_notes }}</div>
+                <div class="col-md-offset-3 col-md-9"><small class="text-muted">Relevant clinical history, suspected conditions, or specific instructions for the lab/radiography department.</small></div>
+            </div>
+
+            <div class="form-group">
+                <div class="col-md-offset-3 col-md-9">
+                    <button type="submit" class="btn btn-primary">{{ submit_label }}</button>
+                    <a href="{% url 'encounter_list' %}" class="btn btn-default">Cancel</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends "app/layout.html" %}
+
+{% block content %}
+<h2>{{ title }}</h2>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Order Info -->
+        <div class="well well-sm">
+            <strong>Patient:</strong> {{ order.patient.patient_number }}
+            &nbsp;|&nbsp;
+            <strong>Test:</strong> {{ order.test_name }}
+            &nbsp;|&nbsp;
+            <strong>Category:</strong> {{ order.get_test_category_display }}
+            &nbsp;|&nbsp;
+            <strong>Priority:</strong> {{ order.get_priority_display }}
+            {% if order.clinical_notes %}
+            <br><strong>Clinical Notes:</strong> {{ order.clinical_notes }}
+            {% endif %}
+        </div>
+
+        <form method="post" enctype="multipart/form-data" class="form-horizontal">
+            {% csrf_token %}
+
+            <!-- Status -->
+            <div class="form-group">
+                <label class="col-md-3 control-label">{{ form.status.label }}</label>
+                <div class="col-md-4">{{ form.status }}</div>
+            </div>
+
+            <hr>
+            <h4>Result Details</h4>
+
+            <div class="form-group">
+                <label class="col-md-3 control-label">{{ form.result_value.label }}</label>
+                <div class="col-md-9">{{ form.result_value }}</div>
+                <div class="col-md-offset-3 col-md-9"><small class="text-muted">Enter the numerical or descriptive result.</small></div>
+            </div>
+            <div class="form-group">
+                <label class="col-md-3 control-label">{{ form.units.label }}</label>
+                <div class="col-md-4">{{ form.units }}</div>
+            </div>
+            <div class="form-group">
+                <label class="col-md-3 control-label">{{ form.reference_range.label }}</label>
+                <div class="col-md-9">{{ form.reference_range }}</div>
+                <div class="col-md-offset-3 col-md-9"><small class="text-muted">Normal range for this test (e.g. 3.5–5.2 mmol/L).</small></div>
+            </div>
+            <div class="form-group">
+                <label class="col-md-3 control-label">{{ form.is_abnormal.label }}</label>
+                <div class="col-md-9">
+                    <div class="checkbox">{{ form.is_abnormal }} <small>Check if result is outside normal range</small></div>
+                </div>
+            </div>
+
+            <hr>
+            <h4>Additional Information</h4>
+
+            <div class="form-group">
+                <label class="col-md-3 control-label">{{ form.methodology.label }}</label>
+                <div class="col-md-9">{{ form.methodology }}</div>
+            </div>
+            <div class="form-group">
+                <label class="col-md-3 control-label">{{ form.instrument_used.label }}</label>
+                <div class="col-md-9">{{ form.instrument_used }}</div>
+            </div>
+            <div class="form-group">
+                <label class="col-md-3 control-label">{{ form.technician_notes.label }}</label>
+                <div class="col-md-9">{{ form.technician_notes }}</div>
+            </div>
+            <div class="form-group">
+                <label class="col-md-3 control-label">{{ form.result_file.label }}</label>
+                <div class="col-md-9">{{ form.result_file }}</div>
+                <div class="col-md-offset-3 col-md-9"><small class="text-muted">Attach a report file if applicable.</small></div>
+            </div>
+
+            <div class="form-group">
+                <div class="col-md-offset-3 col-md-9">
+                    <button type="submit" class="btn btn-primary">{{ submit_label }}</button>
+                    <a href="{% url 'lab_tech_dashboard' %}" class="btn btn-default">Cancel</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

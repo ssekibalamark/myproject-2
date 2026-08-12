@@ -1,31 +1,96 @@
 {% extends "app/layout.html" %}
+{% load app_extras %}
 
 {% block content %}
 <h2>Nurse Dashboard</h2>
 <p>Welcome, {{ user.get_full_name }}!</p>
 
+<!-- Patients needing vitals check (recently registered, no vitals) -->
+{% if patients_needing_vitals %}
+<div class="alert alert-warning">
+    <strong>Check Vitals!</strong> The following recently registered patients need vital signs recorded:
+    <ul>
+        {% for patient in patients_needing_vitals|slice:":10" %}
+        <li>
+            {{ patient.patient_number }} - {{ patient.first_name }} {{ patient.last_name }}
+            <a href="{% url 'nurse_vital_signs_create' patient.id %}" class="btn btn-warning btn-xs">Record Vitals</a>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
 <div class="row">
-    <div class="col-md-4">
+    <div class="col-md-6">
         <div class="panel panel-default">
-            <div class="panel-heading">Patients</div>
+            <div class="panel-heading"><strong>Today's Encounters</strong></div>
+            <div class="panel-body">
+                {% if todays_encounters %}
+                <table class="table table-condensed table-striped">
+                    <thead>
+                        <tr>
+                            <th>Patient</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Test Status</th>
+                            <th>Doctor</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for enc in todays_encounters %}
+                        <tr>
+                            <td>{{ enc.patient.first_name }} {{ enc.patient.last_name }}</td>
+                            <td>{{ enc.get_encounter_type_display }}</td>
+                            <td>
+                                <span class="label {% if enc.status == 'PENDING_REVIEW' %}label-warning{% elif enc.status == 'IN_CONSULTATION' %}label-info{% elif enc.status == 'DONE' %}label-success{% else %}label-default{% endif %}">
+                                    {{ enc.get_status_display }}
+                                </span>
+                            </td>
+                            <td>
+                                {% with ts=encounter_test_status|get_item:enc.id %}
+                                {% if ts.state == "awaiting" %}
+                                <span class="label label-warning">Awaiting Tests</span>
+                                {% elif ts.state == "ready" %}
+                                <span class="label label-success">Tests Ready</span>
+                                {% else %}
+                                <span class="label label-default">No Tests</span>
+                                {% endif %}
+                                {% endwith %}
+                            </td>
+                            <td>{{ enc.attending_doctor.user.get_full_name|default:"—" }}</td>
+                            <td>
+                                <a href="{% url 'nurse_patient_detail' enc.patient.id %}" class="btn btn-primary btn-xs">View</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted">No encounters scheduled for today.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="panel panel-default">
+            <div class="panel-heading"><strong>Quick Actions</strong></div>
             <div class="panel-body">
                 <a href="{% url 'nurse_patient_list' %}" class="btn btn-primary btn-block">View All Patients</a>
                 <a href="{% url 'nurse_patient_create' %}" class="btn btn-success btn-block">Register New Patient</a>
             </div>
         </div>
-    </div>
-    <div class="col-md-4">
         <div class="panel panel-default">
-            <div class="panel-heading">Quick Actions</div>
+            <div class="panel-heading"><strong>Recent Patients</strong></div>
             <div class="panel-body">
-                <!-- You can add a search or recent patients list -->
-                <p>Select a patient to record vitals:</p>
                 <ul class="list-group">
                     {% for patient in patients|slice:":5" %}
                     <li class="list-group-item">
-                        {{ patient.first_name }} {{ patient.last_name }}
-                        <a href="{% url 'nurse_vital_signs_create' patient.id %}" class="badge">Add Vitals</a>
-                        <a href="{% url 'nurse_patient_detail' patient.id %}" class="badge">View</a>
+                        {{ patient.patient_number }} - {{ patient.first_name }} {{ patient.last_name }}
+                        <span class="pull-right">
+                            <a href="{% url 'nurse_vital_signs_create' patient.id %}" class="badge">Add Vitals</a>
+                            <a href="{% url 'nurse_patient_detail' patient.id %}" class="badge">View</a>
+                        </span>
                     </li>
                     {% empty %}
                     <li class="list-group-item">No patients registered yet.</li>

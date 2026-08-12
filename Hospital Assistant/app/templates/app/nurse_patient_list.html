@@ -1,11 +1,99 @@
 {% extends "app/layout.html" %}
+{% load app_extras %}
 
 {% block content %}
-<h2>Patient List</h2>
+<h2>Today's Patient List</h2>
 <p>
     <a href="{% url 'nurse_patient_create' %}" class="btn btn-success">Register New Patient</a>
 </p>
 
+<!-- Today's Encounters (patients registered for today) -->
+<h3>Today's Encounters</h3>
+{% if todays_encounters %}
+<table class="table table-striped table-bordered">
+    <thead>
+        <tr>
+            <th>Time</th>
+            <th>Patient Number</th>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Test Status</th>
+            <th>Doctor</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for enc in todays_encounters %}
+        <tr>
+            <td>{{ enc.started_at|date:"H:i" }}</td>
+            <td>{{ enc.patient.patient_number }}</td>
+            <td>{{ enc.patient.first_name }} {{ enc.patient.last_name }}</td>
+            <td>{{ enc.get_encounter_type_display }}</td>
+            <td>
+                <span class="label {% if enc.status == 'PENDING_REVIEW' %}label-warning
+                {% elif enc.status == 'IN_CONSULTATION' %}label-info
+                {% elif enc.status == 'DONE' %}label-success
+                {% elif enc.status == 'SCHEDULED' %}label-primary
+                {% else %}label-default{% endif %}">
+                    {{ enc.get_status_display }}
+                </span>
+            </td>
+            <td>
+                {% with ts=encounter_test_status|get_item:enc.id %}
+                {% if ts.state == "awaiting" %}
+                <span class="label label-warning">Awaiting Tests</span>
+                {% elif ts.state == "ready" %}
+                <span class="label label-success">Tests Ready</span>
+                {% else %}
+                <span class="label label-default">No Tests</span>
+                {% endif %}
+                {% endwith %}
+            </td>
+            <td>{{ enc.attending_doctor.user.get_full_name|default:"—" }}</td>
+            <td>
+                <a href="{% url 'nurse_patient_detail' enc.patient.id %}" class="btn btn-primary btn-sm">View</a>
+                <a href="{% url 'nurse_vital_signs_create' enc.patient.id %}" class="btn btn-success btn-sm">Add Vitals</a>
+                <!-- Status change dropdown for nurse -->
+                <div class="btn-group">
+                    <button type="button" class="btn btn-warning btn-sm dropdown-toggle" data-toggle="dropdown">
+                        Status <span class="caret"></span>
+                    </button>
+                    <ul class="dropdown-menu" role="menu">
+                        <li>
+                            <form method="post" action="{% url 'nurse_change_encounter_status' enc.id %}" style="display:inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="status" value="PENDING_REVIEW">
+                                <button type="submit" class="btn btn-link btn-sm">Pending Review</button>
+                            </form>
+                        </li>
+                        <li>
+                            <form method="post" action="{% url 'nurse_change_encounter_status' enc.id %}" style="display:inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="status" value="IN_CONSULTATION">
+                                <button type="submit" class="btn btn-link btn-sm">In Consultation</button>
+                            </form>
+                        </li>
+                        <li>
+                            <form method="post" action="{% url 'nurse_change_encounter_status' enc.id %}" style="display:inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="status" value="DONE">
+                                <button type="submit" class="btn btn-link btn-sm">Done</button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="alert alert-info">No encounters scheduled for today.</div>
+{% endif %}
+
+<!-- All Patients (recently registered first) -->
+<h3>All Patients</h3>
 <table class="table table-striped table-bordered">
     <thead>
         <tr>
@@ -14,6 +102,8 @@
             <th>Date of Birth</th>
             <th>Sex</th>
             <th>Phone</th>
+            <th>Vitals</th>
+            <th>Test Status</th>
             <th>Actions</th>
         </tr>
     </thead>
@@ -26,12 +116,30 @@
             <td>{{ patient.get_sex_display }}</td>
             <td>{{ patient.phone_number }}</td>
             <td>
+                {% if patient.id in patients_with_vitals %}
+                <span class="label label-success">Vitals Taken</span>
+                {% else %}
+                <span class="label label-danger">Check Vitals!</span>
+                {% endif %}
+            </td>
+            <td>
+                {% with ts=patient_test_status|get_item:patient.id %}
+                {% if ts.state == "awaiting" %}
+                <span class="label label-warning">Awaiting Tests</span>
+                {% elif ts.state == "ready" %}
+                <span class="label label-success">Tests Ready</span>
+                {% else %}
+                <span class="label label-default">No Tests</span>
+                {% endif %}
+                {% endwith %}
+            </td>
+            <td>
                 <a href="{% url 'nurse_patient_detail' patient.id %}" class="btn btn-primary btn-sm">View</a>
                 <a href="{% url 'nurse_vital_signs_create' patient.id %}" class="btn btn-success btn-sm">Add Vitals</a>
             </td>
         </tr>
         {% empty %}
-        <tr><td colspan="6">No patients found.</td></tr>
+        <tr><td colspan="8">No patients found.</td></tr>
         {% endfor %}
     </tbody>
 </table>

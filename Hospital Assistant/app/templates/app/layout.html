@@ -36,21 +36,31 @@
                     <!-- Nurse menu -->
                     <li><a href="{% url 'nurse_patient_list' %}">Patients</a></li>
                     <li><a href="{% url 'nurse_patient_create' %}">Register Patient</a></li>
-                    
-                    
-                   
-                    
+
+                    {% elif role == "PATHOLOGIST" %}
+                    <!-- Pathologist menu -->
+                    <li><a href="{% url 'pathologist_dashboard' %}">Dashboard</a></li>
+
+                    {% elif role == "LAB_TECH" %}
+                    <!-- Lab Technician menu (limited access) -->
+                    <li><a href="{% url 'lab_tech_dashboard' %}">Dashboard</a></li>
+
+                    {% elif role == "RADIOGRAPHER" %}
+                    <!-- Radiographer menu -->
+                    <li><a href="{% url 'radiography_dashboard' %}">Dashboard</a></li>
+
                     {% elif role == "DOCTOR" or role == "SPECIALIST" or role == "ICT_ADMIN" %}
                     <!-- Doctor / Specialist / ICT Admin menu -->
-                    <li><a href="{% url 'patient_list' %}">Patients</a></li>
-                    <li><a href="{% url 'encounter_list' %}">Encounters</a></li>
+                    <li><a href="{% url 'doctor_dashboard' %}">Dashboard</a></li>
+                    <li><a href="{% url 'doctor_patient_list' %}">Patients Awaiting</a></li>
+                    <li><a href="{% url 'doctor_all_patients' %}">All Patients</a></li>
                     <li><a href="{% url 'next_of_kin_patient_list' %}">Next of Kin</a></li>
                     <li><a href="{% url 'ai_encounter_list' %}">AI Workflow</a></li>
                     {% if user.is_superuser or role == "ICT_ADMIN" %}
                     <li><a href="{% url 'staff_profile_list' %}">Staff</a></li>
                     {% endif %}
                     {% else %}
-                    <!-- Other roles (Pharmacy, Lab, Radiographer) -->
+                    <!-- Other roles (Pharmacy, etc.) -->
                     <li><a href="{% url 'patient_list' %}">Patients</a></li>
                     <li><a href="{% url 'next_of_kin_patient_list' %}">Next of Kin</a></li>
                     {% endif %}

@@ -25,6 +25,7 @@ class StaffRole(models.TextChoices):
     SPECIALIST = "SPECIALIST", "Specialist"
     NURSE = "NURSE", "Nurse"
     PHARMACIST = "PHARMACIST", "Pharmacist"
+    PATHOLOGIST = "PATHOLOGIST", "Pathologist"
     LAB_TECH = "LAB_TECH", "Lab Technician"
     RADIOGRAPHER = "RADIOGRAPHER", "Radiographer"
     
@@ -282,10 +283,13 @@ class Encounter(TimeStampedModel):
     class EncounterStatus(models.TextChoices):
         """Workflow status of an encounter."""
         SCHEDULED = "SCHEDULED", "Scheduled"
+        PENDING_REVIEW = "PENDING_REVIEW", "Pending Review"
+        IN_CONSULTATION = "IN_CONSULTATION", "In Consultation"
         OPEN = "OPEN", "Open"
         UNDER_REVIEW = "UNDER_REVIEW", "Under review"
         COMPLETED = "COMPLETED", "Completed"
         CANCELLED = "CANCELLED", "Cancelled"
+        DONE = "DONE", "Done"
 
     class SpecialistDecision(models.TextChoices):
         """Specialist review decision for AI/clinical recommendations."""
@@ -459,11 +463,47 @@ class VitalSigns(TimeStampedModel):
         """Readable admin/list display value for vital signs."""
         return f"{self.patient} - {self.recorded_at.strftime('%Y-%m-%d %H:%M:%S')  }"
 
+class PrescriptionType(models.TextChoices):
+    """Type of prescription being written."""
+
+    OUTPATIENT = "OUTPATIENT", "Outpatient"
+    INPATIENT = "INPATIENT", "Inpatient"
+    REPEAT = "REPEAT", "Repeat"
+    CONTROLLED = "CONTROLLED", "Controlled Drug"
+
+
+class AdministrationRoute(models.TextChoices):
+    """Route of administration for a prescribed medicine."""
+
+    ORAL = "ORAL", "Oral"
+    INJECTION = "INJECTION", "Injection"
+    INTRAVENOUS = "INTRAVENOUS", "Intravenous"
+    TOPICAL = "TOPICAL", "Topical"
+    INHALATION = "INHALATION", "Inhalation"
+    SUBCUTANEOUS = "SUBCUTANEOUS", "Subcutaneous"
+    RECTAL = "RECTAL", "Rectal"
+    OPHTHALMIC = "OPHTHALMIC", "Ophthalmic"
+    OTIC = "OTIC", "Otic"
+    OTHER = "OTHER", "Other"
+
+
 class PrescribedMedication(TimeStampedModel):
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name="medications")
-    medication_name = models.CharField(max_length=200)
-    dose = models.CharField(max_length=80, blank=True)
-    frequency = models.CharField(max_length=80, blank=True)
+    medication_name = models.CharField(max_length=200, help_text="Generic or brand name of the medicine")
+    dose = models.CharField(max_length=80, blank=True, help_text="Exact amount (e.g. 500 mg)")
+    route = models.CharField(
+        max_length=30,
+        choices=AdministrationRoute.choices,
+        default=AdministrationRoute.ORAL,
+        blank=True,
+    )
+    frequency = models.CharField(max_length=80, blank=True, help_text="How often (e.g. twice daily, every 8 hours)")
+    duration = models.CharField(max_length=80, blank=True, help_text="How long to continue (e.g. 7 days, until finished)")
+    prescription_type = models.CharField(
+        max_length=20,
+        choices=PrescriptionType.choices,
+        default=PrescriptionType.OUTPATIENT,
+    )
     start_date = models.DateField()
     end_date = models.DateField(null=True, blank=True)
     prescribed_by = models.ForeignKey(StaffProfile, 
@@ -471,7 +511,289 @@ class PrescribedMedication(TimeStampedModel):
                                       null=True, 
                                       blank=True, 
                                       related_name="prescribed_medications")
+    special_instructions = models.TextField(
+        blank=True,
+        help_text="Take with food, avoid alcohol, store in fridge, etc.",
+    )
     notes = models.TextField(blank=True)
     def __str__(self):
         """Readable admin/list display value for prescribed medication."""
         return f"{self.patient} - {self.medication_name} ({self.start_date} to {self.end_date or 'ongoing'})"
+
+
+# ---------------------------------------------------------------------------
+# Lab / Pathology / Radiography Platform Models
+# ---------------------------------------------------------------------------
+
+class LabTestCategory(models.TextChoices):
+    """Top-level categories for lab, pathology, and radiography tests."""
+
+    # -- Pathologist categories --
+    HISTOPATHOLOGY = "HISTOPATHOLOGY", "Histopathology (Tissue Analysis)"
+    CYTOPATHOLOGY = "CYTOPATHOLOGY", "Cytopathology (Cell Analysis)"
+    HEMATOPATHOLOGY = "HEMATOPATHOLOGY", "Hematopathology (Blood Disorders)"
+    AUTOPSY = "AUTOPSY", "Autopsy Examination"
+    MOLECULAR_GENETIC = "MOLECULAR_GENETIC", "Molecular & Genetic Testing"
+    IHC = "IHC", "Immunohistochemistry (IHC)"
+    TRANSFUSION_PATH = "TRANSFUSION_PATH", "Transfusion Medicine Oversight"
+
+    # -- Lab Technician categories --
+    HEMATOLOGY = "HEMATOLOGY", "Hematology"
+    CLINICAL_CHEMISTRY = "CLINICAL_CHEMISTRY", "Clinical Chemistry"
+    MICROBIOLOGY = "MICROBIOLOGY", "Microbiology"
+    IMMUNOLOGY_SEROLOGY = "IMMUNOLOGY_SEROLOGY", "Immunology & Serology"
+    URINALYSIS = "URINALYSIS", "Urinalysis & Fluid Tests"
+    HISTOLOGY_CYTOLOGY = "HISTOLOGY_CYTOLOGY", "Histology & Cytology Prep"
+    TRANSFUSION_LAB = "TRANSFUSION_LAB", "Transfusion Medicine"
+
+    # -- Radiography categories --
+    XRAY = "XRAY", "X-ray"
+    CT = "CT", "CT (Computed Tomography)"
+    MRI = "MRI", "MRI (Magnetic Resonance Imaging)"
+    ULTRASOUND = "ULTRASOUND", "Ultrasound"
+    FLUOROSCOPY = "FLUOROSCOPY", "Fluoroscopy"
+    INTERVENTIONAL_RAD = "INTERVENTIONAL_RAD", "Interventional Radiography"
+
+
+class LabTestOrder(TimeStampedModel):
+    """A test ordered by a doctor during an encounter for lab/pathology/radiography."""
+
+    class OrderStatus(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        IN_PROGRESS = "IN_PROGRESS", "In Progress"
+        COMPLETED = "COMPLETED", "Completed"
+        CANCELLED = "CANCELLED", "Cancelled"
+
+    class Priority(models.TextChoices):
+        ROUTINE = "ROUTINE", "Routine"
+        URGENT = "URGENT", "Urgent"
+        STAT = "STAT", "Stat"
+
+    encounter = models.ForeignKey(
+        Encounter, on_delete=models.CASCADE, related_name="lab_test_orders"
+    )
+    patient = models.ForeignKey(
+        Patient, on_delete=models.CASCADE, related_name="lab_test_orders"
+    )
+    test_name = models.CharField(max_length=200)
+    test_category = models.CharField(max_length=30, choices=LabTestCategory.choices)
+    ordered_by = models.ForeignKey(
+        StaffProfile,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="ordered_lab_tests",
+    )
+    priority = models.CharField(
+        max_length=10, choices=Priority.choices, default=Priority.ROUTINE
+    )
+    status = models.CharField(
+        max_length=20, choices=OrderStatus.choices, default=OrderStatus.PENDING
+    )
+    clinical_notes = models.TextField(blank=True, help_text="Doctor's notes for the lab/radio.")
+    ordered_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-ordered_at"]
+
+    def __str__(self):
+        return f"{self.test_name} ({self.get_test_category_display()}) - {self.patient}"
+
+
+# ---------------------------------------------------------------------------
+# 1. PATHOLOGIST PLATFORM
+# ---------------------------------------------------------------------------
+
+class PathologistFinding(TimeStampedModel):
+    """Pathologist's detailed findings, diagnosis, and report for a test order."""
+
+    class FindingStatus(models.TextChoices):
+        DRAFT = "DRAFT", "Draft"
+        FINAL = "FINAL", "Final"
+        AMENDED = "AMENDED", "Amended"
+
+    lab_test_order = models.OneToOneField(
+        LabTestOrder,
+        on_delete=models.CASCADE,
+        related_name="pathologist_finding",
+    )
+    pathologist = models.ForeignKey(
+        StaffProfile,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="pathologist_findings",
+    )
+    status = models.CharField(
+        max_length=20, choices=FindingStatus.choices, default=FindingStatus.DRAFT
+    )
+
+    # -- Specimen details --
+    specimen_type = models.CharField(max_length=200, blank=True)
+    specimen_received_at = models.DateTimeField(null=True, blank=True)
+    specimen_quality = models.CharField(max_length=100, blank=True)
+
+    # -- Microscopic / Gross findings --
+    gross_description = models.TextField(blank=True, help_text="Macroscopic description of specimen.")
+    microscopic_findings = models.TextField(blank=True, help_text="Microscopic examination findings.")
+
+    # -- Diagnosis & grading --
+    diagnosis = models.TextField(blank=True, help_text="Final pathological diagnosis.")
+    tumor_grade = models.CharField(max_length=60, blank=True, help_text="Tumor grading (e.g., Grade I-IV, Gleason score).")
+    margins_status = models.CharField(max_length=60, blank=True, help_text="Surgical margins status.")
+    lymph_node_status = models.CharField(max_length=100, blank=True)
+
+    # -- Special studies --
+    ihc_results = models.TextField(blank=True, help_text="Immunohistochemistry staining results.")
+    molecular_findings = models.TextField(blank=True, help_text="DNA/RNA, PCR, sequencing results.")
+    flow_cytometry_results = models.TextField(blank=True)
+
+    # -- Autopsy-specific --
+    cause_of_death = models.CharField(max_length=200, blank=True)
+    organ_damage_summary = models.TextField(blank=True)
+
+    # -- Conclusion & report --
+    conclusion = models.TextField(blank=True)
+    recommendations = models.TextField(blank=True)
+    report_file = models.FileField(upload_to="pathology_reports/%Y/%m/", null=True, blank=True)
+
+    # -- Review tracking --
+    reviewed_by = models.ForeignKey(
+        StaffProfile,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_pathology_reports",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Pathology Report - {self.lab_test_order}"
+
+
+# ---------------------------------------------------------------------------
+# 2. LAB TECHNICIAN PLATFORM
+# ---------------------------------------------------------------------------
+
+class LabTestResult(TimeStampedModel):
+    """Lab technician's test result entry for a lab test order."""
+
+    class ResultStatus(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        IN_PROGRESS = "IN_PROGRESS", "In Progress"
+        COMPLETED = "COMPLETED", "Completed"
+        VERIFIED = "VERIFIED", "Verified by Pathologist"
+
+    lab_test_order = models.ForeignKey(
+        LabTestOrder,
+        on_delete=models.CASCADE,
+        related_name="lab_results",
+    )
+    lab_technician = models.ForeignKey(
+        StaffProfile,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="lab_test_results",
+    )
+    status = models.CharField(
+        max_length=20, choices=ResultStatus.choices, default=ResultStatus.PENDING
+    )
+
+    # -- Result details --
+    result_value = models.TextField(blank=True, help_text="Numerical or descriptive result.")
+    reference_range = models.CharField(max_length=120, blank=True)
+    is_abnormal = models.BooleanField(default=False)
+    units = models.CharField(max_length=40, blank=True)
+
+    # -- Additional fields --
+    methodology = models.CharField(max_length=120, blank=True)
+    instrument_used = models.CharField(max_length=120, blank=True)
+    technician_notes = models.TextField(blank=True)
+
+    # -- Report attachment --
+    result_file = models.FileField(upload_to="lab_results/%Y/%m/", null=True, blank=True)
+
+    # -- Verification by pathologist --
+    verified_by = models.ForeignKey(
+        StaffProfile,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="verified_lab_results",
+    )
+    verified_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Lab Result - {self.lab_test_order.test_name} ({self.lab_test_order.patient})"
+
+
+# ---------------------------------------------------------------------------
+# 3. RADIOGRAPHY PLATFORM
+# ---------------------------------------------------------------------------
+
+class RadiographyStudy(TimeStampedModel):
+    """Radiography imaging study with findings, images, and report."""
+
+    class StudyStatus(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        IN_PROGRESS = "IN_PROGRESS", "In Progress"
+        COMPLETED = "COMPLETED", "Completed"
+
+    lab_test_order = models.OneToOneField(
+        LabTestOrder,
+        on_delete=models.CASCADE,
+        related_name="radiography_study",
+    )
+    radiographer = models.ForeignKey(
+        StaffProfile,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="radiography_studies",
+    )
+    status = models.CharField(
+        max_length=20, choices=StudyStatus.choices, default=StudyStatus.PENDING
+    )
+
+    # -- Imaging details --
+    body_part = models.CharField(max_length=120, blank=True, help_text="Body part/region imaged.")
+    technique = models.CharField(max_length=200, blank=True, help_text="Imaging technique and protocol.")
+    contrast_used = models.CharField(max_length=100, blank=True)
+
+    # -- Image upload --
+    image_file = models.ImageField(upload_to="radiography_images/%Y/%m/", null=True, blank=True)
+    additional_image_1 = models.ImageField(upload_to="radiography_images/%Y/%m/", null=True, blank=True)
+    additional_image_2 = models.ImageField(upload_to="radiography_images/%Y/%m/", null=True, blank=True)
+
+    # -- Findings & impression --
+    findings = models.TextField(blank=True, help_text="Detailed imaging findings.")
+    impression = models.TextField(blank=True, help_text="Radiologist's impression / summary.")
+    conclusion = models.TextField(blank=True)
+
+    # -- Report --
+    report_file = models.FileField(upload_to="radiography_reports/%Y/%m/", null=True, blank=True)
+
+    # -- Review tracking --
+    reviewed_by = models.ForeignKey(
+        StaffProfile,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_radiography_studies",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name_plural = "Radiography Studies"
+
+    def __str__(self):
+        return f"Radiography Study - {self.lab_test_order.test_name} ({self.lab_test_order.patient})"

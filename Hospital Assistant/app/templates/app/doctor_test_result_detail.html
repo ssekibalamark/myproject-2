@@ -1,0 +1,143 @@
+{% extends "app/layout.html" %}
+
+{% block content %}
+<h2>{{ title }}</h2>
+
+<!-- Order info -->
+<div class="well well-sm">
+    <strong>Patient:</strong> {{ order.patient.patient_number }} — {{ order.patient.first_name }} {{ order.patient.last_name }}
+    &nbsp;|&nbsp;
+    <strong>Test:</strong> {{ order.test_name }}
+    &nbsp;|&nbsp;
+    <strong>Category:</strong> {{ order.get_test_category_display }}
+    &nbsp;|&nbsp;
+    <strong>Status:</strong> {{ order.get_status_display }}
+</div>
+
+<!-- Pathology Result -->
+{% if pathology %}
+<div class="panel panel-default">
+    <div class="panel-heading"><strong>Pathology Report</strong> — {{ pathology.get_status_display }}</div>
+    <div class="panel-body">
+        <table class="table table-bordered">
+            <tr><th style="width: 200px;">Pathologist</th><td>{{ pathology.pathologist.user.get_full_name|default:"—" }}</td></tr>
+            <tr><th>Specimen Type</th><td>{{ pathology.specimen_type|default:"—" }}</td></tr>
+            <tr><th>Specimen Quality</th><td>{{ pathology.specimen_quality|default:"—" }}</td></tr>
+            <tr><th>Gross Description</th><td>{{ pathology.gross_description|default:"—" }}</td></tr>
+            <tr><th>Microscopic Findings</th><td>{{ pathology.microscopic_findings|default:"—" }}</td></tr>
+            <tr><th>Diagnosis</th><td><strong>{{ pathology.diagnosis|default:"—" }}</strong></td></tr>
+            <tr><th>Tumor Grade</th><td>{{ pathology.tumor_grade|default:"—" }}</td></tr>
+            <tr><th>Margins Status</th><td>{{ pathology.margins_status|default:"—" }}</td></tr>
+            <tr><th>Lymph Node Status</th><td>{{ pathology.lymph_node_status|default:"—" }}</td></tr>
+            <tr><th>IHC Results</th><td>{{ pathology.ihc_results|default:"—" }}</td></tr>
+            <tr><th>Molecular Findings</th><td>{{ pathology.molecular_findings|default:"—" }}</td></tr>
+            <tr><th>Flow Cytometry</th><td>{{ pathology.flow_cytometry_results|default:"—" }}</td></tr>
+            <tr><th>Cause of Death</th><td>{{ pathology.cause_of_death|default:"—" }}</td></tr>
+            <tr><th>Organ Damage</th><td>{{ pathology.organ_damage_summary|default:"—" }}</td></tr>
+            <tr><th>Conclusion</th><td>{{ pathology.conclusion|default:"—" }}</td></tr>
+            <tr><th>Recommendations</th><td>{{ pathology.recommendations|default:"—" }}</td></tr>
+            {% if pathology.report_file %}
+            <tr><th>Report File</th><td><a href="{{ pathology.report_file.url }}" target="_blank">Download</a></td></tr>
+            {% endif %}
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Radiography Result -->
+{% if radiography %}
+<div class="panel panel-default">
+    <div class="panel-heading"><strong>Radiography Study</strong> — {{ radiography.get_status_display }}</div>
+    <div class="panel-body">
+        <table class="table table-bordered">
+            <tr><th style="width: 200px;">Radiographer</th><td>{{ radiography.radiographer.user.get_full_name|default:"—" }}</td></tr>
+            <tr><th>Body Part</th><td>{{ radiography.body_part|default:"—" }}</td></tr>
+            <tr><th>Technique</th><td>{{ radiography.technique|default:"—" }}</td></tr>
+            <tr><th>Contrast Used</th><td>{{ radiography.contrast_used|default:"—" }}</td></tr>
+            <tr><th>Findings</th><td>{{ radiography.findings|default:"—" }}</td></tr>
+            <tr><th>Impression</th><td>{{ radiography.impression|default:"—" }}</td></tr>
+            <tr><th>Conclusion</th><td>{{ radiography.conclusion|default:"—" }}</td></tr>
+        </table>
+
+        <!-- Images -->
+        <div class="row">
+            {% if radiography.image_file %}
+            <div class="col-md-4">
+                <div class="thumbnail">
+                    <img src="{{ radiography.image_file.url }}" alt="Primary image" class="img-responsive" style="max-height: 220px;">
+                    <div class="caption text-center"><small>Primary Image</small></div>
+                </div>
+            </div>
+            {% endif %}
+            {% if radiography.additional_image_1 %}
+            <div class="col-md-4">
+                <div class="thumbnail">
+                    <img src="{{ radiography.additional_image_1.url }}" alt="Additional 1" class="img-responsive" style="max-height: 220px;">
+                    <div class="caption text-center"><small>Additional Image 1</small></div>
+                </div>
+            </div>
+            {% endif %}
+            {% if radiography.additional_image_2 %}
+            <div class="col-md-4">
+                <div class="thumbnail">
+                    <img src="{{ radiography.additional_image_2.url }}" alt="Additional 2" class="img-responsive" style="max-height: 220px;">
+                    <div class="caption text-center"><small>Additional Image 2</small></div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if radiography.report_file %}
+        <p><a href="{{ radiography.report_file.url }}" target="_blank" class="btn btn-info btn-sm">Download Report</a></p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Lab Results -->
+{% if lab_results %}
+<div class="panel panel-default">
+    <div class="panel-heading"><strong>Lab Results</strong></div>
+    <div class="panel-body">
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Lab Tech</th>
+                    <th>Value</th>
+                    <th>Units</th>
+                    <th>Reference Range</th>
+                    <th>Abnormal</th>
+                    <th>Status</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for res in lab_results %}
+                <tr>
+                    <td>{{ res.lab_technician.user.get_full_name|default:"—" }}</td>
+                    <td><strong>{{ res.result_value }}</strong></td>
+                    <td>{{ res.units }}</td>
+                    <td>{{ res.reference_range|default:"—" }}</td>
+                    <td>
+                        {% if res.is_abnormal %}
+                        <span class="label label-danger">Abnormal</span>
+                        {% else %}
+                        <span class="label label-success">Normal</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ res.get_status_display }}</td>
+                    <td>{{ res.technician_notes|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if not pathology and not radiography and not lab_results %}
+<div class="alert alert-info">Results have not been uploaded yet.</div>
+{% endif %}
+
+<a href="{% url 'doctor_patient_detail' order.patient.id %}" class="btn btn-default">Back to Patient</a>
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends "app/layout.html" %}
+
+{% block content %}
+<h2>{{ title }}</h2>
+<p>Welcome, {{ user.get_full_name }}! <span class="label label-info">{{ user.staff_profile.get_role_display }}</span></p>
+<p class="text-muted"><small>Lab technicians work under pathologist supervision. Patient details are limited to test orders only.</small></p>
+
+<div class="row">
+    <!-- Left Column: Pending Orders -->
+    <div class="col-md-7">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <strong>Pending Lab Orders</strong>
+                <span class="badge pull-right">{{ pending_orders|length }}</span>
+            </div>
+            <div class="panel-body">
+                {% if pending_orders %}
+                <table class="table table-condensed table-striped">
+                    <thead>
+                        <tr>
+                            <th>Patient #</th>
+                            <th>Test</th>
+                            <th>Category</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in pending_orders %}
+                        <tr>
+                            <td>{{ order.patient.patient_number }}</td>
+                            <td>{{ order.test_name }}</td>
+                            <td><small>{{ order.get_test_category_display }}</small></td>
+                            <td>
+                                {% if order.priority == "STAT" %}
+                                <span class="label label-danger">STAT</span>
+                                {% elif order.priority == "URGENT" %}
+                                <span class="label label-warning">Urgent</span>
+                                {% else %}
+                                <span class="label label-default">Routine</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ order.get_status_display }}</td>
+                            <td>
+                                <a href="{% url 'lab_tech_result_create' order.id %}" class="btn btn-success btn-xs">Enter Result</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted">No pending lab orders.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: My Results & Categories Help -->
+    <div class="col-md-5">
+        <!-- My Results -->
+        <div class="panel panel-info">
+            <div class="panel-heading"><strong>My Results</strong></div>
+            <div class="panel-body">
+                {% if my_results %}
+                <table class="table table-condensed">
+                    <thead>
+                        <tr><th>Patient #</th><th>Test</th><th>Value</th><th>Status</th><th>Action</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for res in my_results %}
+                        <tr>
+                            <td>{{ res.lab_test_order.patient.patient_number }}</td>
+                            <td><small>{{ res.lab_test_order.test_name }}</small></td>
+                            <td><small>{{ res.result_value|truncatechars:20 }}</small></td>
+                            <td>
+                                {% if res.status == "VERIFIED" %}
+                                <span class="label label-success">Verified</span>
+                                {% elif res.status == "COMPLETED" %}
+                                <span class="label label-info">Awaiting Review</span>
+                                {% elif res.status == "IN_PROGRESS" %}
+                                <span class="label label-warning">In Progress</span>
+                                {% else %}
+                                <span class="label label-default">Pending</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if res.status == "PENDING" or res.status == "IN_PROGRESS" %}
+                                <a href="{% url 'lab_tech_result_edit' res.id %}" class="btn btn-info btn-xs">Edit</a>
+                                <form method="post" action="{% url 'lab_tech_submit_for_review' res.id %}" style="display:inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-primary btn-xs">Submit</button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted">No results entered yet.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Lab Test Categories Reference -->
+        <div class="panel panel-default">
+            <div class="panel-heading"><strong>Lab Test Categories</strong></div>
+            <div class="panel-body" style="font-size: 0.85em;">
+                <ul class="list-unstyled">
+                    <li><strong>Hematology:</strong> CBC, clotting studies, Hb, Hct</li>
+                    <li><strong>Clinical Chemistry:</strong> Glucose, cholesterol, LFTs, KFTs, electrolytes</li>
+                    <li><strong>Microbiology:</strong> Culture & sensitivity, viral detection, parasite ID</li>
+                    <li><strong>Immunology & Serology:</strong> Allergy, autoimmune markers, antibodies</li>
+                    <li><strong>Urinalysis & Fluids:</strong> Routine UA, CSF, ascitic/pleural fluid</li>
+                    <li><strong>Histology & Cytology Prep:</strong> Slide preparation, Pap smears</li>
+                    <li><strong>Transfusion Medicine:</strong> Blood typing, cross-matching</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "app/layout.html" %}
+
+{% block content %}
+<h2>{{ title }}</h2>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Order Info -->
+        <div class="well well-sm">
+            <strong>Patient:</strong> {{ result.lab_test_order.patient.patient_number }} — {{ result.lab_test_order.patient.first_name }} {{ result.lab_test_order.patient.last_name }}
+        </div>
+
+        <!-- Test & Result Details -->
+        <div class="panel panel-default">
+            <div class="panel-heading"><strong>{{ result.lab_test_order.test_name }}</strong> — {{ result.lab_test_order.get_test_category_display }}</div>
+            <div class="panel-body">
+                <table class="table table-bordered">
+                    <tr><th style="width: 180px;">Lab Technician</th><td>{{ result.lab_technician.user.get_full_name|default:"—" }}</td></tr>
+                    <tr><th>Result Value</th><td><strong>{{ result.result_value }}</strong> {{ result.units }}</td></tr>
+                    <tr><th>Reference Range</th><td>{{ result.reference_range|default:"Not specified" }}</td></tr>
+                    <tr>
+                        <th>Abnormal</th>
+                        <td>
+                            {% if result.is_abnormal %}
+                            <span class="label label-danger">Yes — Abnormal</span>
+                            {% else %}
+                            <span class="label label-success">No — Normal</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr><th>Methodology</th><td>{{ result.methodology|default:"—" }}</td></tr>
+                    <tr><th>Instrument Used</th><td>{{ result.instrument_used|default:"—" }}</td></tr>
+                    <tr><th>Technician Notes</th><td>{{ result.technician_notes|default:"—" }}</td></tr>
+                    {% if result.result_file %}
+                    <tr><th>Report File</th><td><a href="{{ result.result_file.url }}" target="_blank">Download</a></td></tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+
+        <!-- Verification Actions -->
+        <form method="post" class="form-inline">
+            {% csrf_token %}
+            <button type="submit" name="action" value="verify" class="btn btn-success btn-lg">
+                <i class="glyphicon glyphicon-ok"></i> Verify &amp; Complete
+            </button>
+            <button type="submit" name="action" value="reject" class="btn btn-warning btn-lg">
+                <i class="glyphicon glyphicon-repeat"></i> Send Back for Revision
+            </button>
+            <a href="{% url 'pathologist_dashboard' %}" class="btn btn-default btn-lg">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}
